@@ -46,36 +46,37 @@ function serve(handler, port) {
   globalThis.MP_YANDEX_URL = 'http://127.0.0.1:9413/foundationModels/v1/completion';
 
   const worker = (await import('file:///C:/Users/vovas/OneDrive/Документы/Kimi/Workspaces/МоёПортфолио/max-portfolio/worker.js')).default;
+  const env = { GIGACHAT_KEY: 'bW9jaw==' }; // как секреты в Cloudflare
 
   const post = body => new Request('https://worker.test/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+  // 0. GET — статус агентов
+  const r0 = await worker.fetch(new Request('https://worker.test/'), env);
+  console.log('GET agents:', r0.status, JSON.stringify((await r0.json()).agents));
 
   // 1. OPTIONS
   const opt = await worker.fetch(new Request('https://worker.test/', { method: 'OPTIONS' }));
   console.log('OPTIONS:', opt.status, opt.headers.get('Access-Control-Allow-Origin'));
 
-  // 2. GigaChat success
-  const r1 = await worker.fetch(post({ provider: 'gigachat', authKey: 'bW9jaw==', system: 'sys', prompt: 'user prompt' }));
+  // 2. GigaChat success (ключ из env, в запросе его нет)
+  const r1 = await worker.fetch(post({ provider: 'gigachat', system: 'sys', prompt: 'user prompt' }), env);
   const d1 = await r1.json();
   console.log('GigaChat:', r1.status, d1.ok, JSON.stringify(d1.text).slice(0, 60));
 
-  // 3. GigaChat bad key
-  const r2 = await worker.fetch(post({ provider: 'gigachat', authKey: 'bad', prompt: 'x' }));
+  // 3. GigaChat без секрета в env
+  const r2 = await worker.fetch(post({ provider: 'gigachat', prompt: 'x' }), {});
   const d2 = await r2.json();
-  console.log('GigaChat bad key:', r2.status, d2.ok, d2.error && d2.error.slice(0, 50));
+  console.log('GigaChat no secret:', r2.status, d2.ok, d2.error && d2.error.slice(0, 60));
 
-  // 4. Yandex success
-  const r3 = await worker.fetch(post({ provider: 'yandexgpt', apiKey: 'yandex-key', folderId: 'folder1', prompt: 'x' }));
+  // 4. Yandex без секретов (в запросе ключ передан — обратная совместимость)
+  const r3 = await worker.fetch(post({ provider: 'yandexgpt', apiKey: 'yandex-key', folderId: 'folder1', prompt: 'x' }), {});
   const d3 = await r3.json();
-  console.log('YandexGPT:', r3.status, d3.ok, JSON.stringify(d3.text).slice(0, 50));
+  console.log('YandexGPT body-key:', r3.status, d3.ok, JSON.stringify(d3.text).slice(0, 40));
 
-  // 5. Yandex missing folder
-  const r4 = await worker.fetch(post({ provider: 'yandexgpt', apiKey: 'yandex-key', prompt: 'x' }));
+  // 5. Yandex без ключей вообще
+  const r4 = await worker.fetch(post({ provider: 'yandexgpt', prompt: 'x' }), {});
   const d4 = await r4.json();
-  console.log('YandexGPT no folder:', r4.status, d4.ok, d4.error);
-
-  // 6. Unknown provider
-  const r5 = await worker.fetch(post({ provider: 'gpt4', prompt: 'x' }));
-  console.log('Unknown provider:', r5.status, (await r5.json()).error);
+  console.log('YandexGPT no keys:', r4.status, d4.ok, d4.error && d4.error.slice(0, 60));
 
   s1.close(); s2.close(); s3.close();
   console.log('DONE');

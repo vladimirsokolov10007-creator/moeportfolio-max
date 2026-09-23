@@ -5,15 +5,25 @@
 // или YandexGPT из-за ограничений CORS. Этот Cloudflare Worker принимает
 // запрос от приложения, вызывает провайдера ИИ и возвращает ответ.
 //
-// ВАЖНО: ключи в воркере НЕ хранятся — приложение передаёт их в каждом
-// запросе, они живут только на устройстве пользователя.
+// Ключи хранятся в СЕКРЕТАХ воркера (Variables and Secrets) — не в коде
+// и не в приложении. Приложению достаточно выбрать агента.
 //
-// Развёртывание (бесплатно, ~5 минут, без банковской карты):
+// РАЗВЁРТЫВАНИЕ (бесплатно, ~5 минут, без банковской карты):
 //   1. dash.cloudflare.com → зарегистрируйтесь
 //   2. Workers & Pages → Create Worker → Deploy
 //   3. «Edit code» → удалите весь код → вставьте этот файл → Deploy
-//   4. Скопируйте URL вида https://<имя>.workers.dev
-//   5. Вставьте его в поле «URL прокси» в настройках ИИ приложения
+//   4. Settings → Variables and Secrets → добавьте секреты (см. ниже)
+//   5. Скопируйте URL вида https://<имя>.workers.dev и вставьте его
+//      в поле «URL прокси» в приложении
+//
+// СЕКРЕТЫ (какие добавить — зависит от выбранного агента):
+//   GIGACHAT_KEY      — Authorization Key GigaChat (developers.sber.ru,
+//                       проект → GigaChat API → «Данные авторизации»)
+//   YANDEX_API_KEY    — API-ключ сервисного аккаунта (cloud.yandex.ru)
+//   YANDEX_FOLDER_ID  — идентификатор каталога (cloud.yandex.ru)
+//
+// ПРОВЕРКА: откройте https://<имя>.workers.dev в браузере — воркер
+// вернёт JSON со списком настроенных агентов.
 // ═══════════════════════════════════════════════════════════════════════════
 
 const OAUTH_URL = globalThis.MP_OAUTH_URL || 'https://ngw.devices.sberbank.ru:9443/api/v2/oauth';
@@ -25,7 +35,7 @@ const YANDEX_MODEL = globalThis.MP_YANDEX_MODEL || 'yandexgpt-lite';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Max-Age': '86400',
 };
@@ -35,6 +45,13 @@ function jsonResponse(body, status = 200) {
     status,
     headers: { 'Content-Type': 'application/json; charset=utf-8', ...corsHeaders },
   });
+}
+
+function agents(env) {
+  return {
+    gigachat: !!(env.GIGACHAT_KEY || ''),
+    yandexgpt: !!(env.YANDEX_API_KEY && env.YANDEX_FOLDER_ID),
+  };
 }
 
 async function readError(res, prefix) {
@@ -55,7 +72,7 @@ async function gigachatAsk(key, system, prompt) {
     },
     body: 'scope=GIGACHAT_API_PERS',
   });
-  if (!tokRes.ok) throw await readError(tokRes, 'GigaChat OAuth (проверьте ключ авторизации)');
+  if (!tokRes.ok) throw await readError(tokRes, 'GigaChat OAuth (проверьте ключ GIGACHAT_KEY)');
   const tokData = await tokRes.json();
   if (!tokData.access_token) throw new Error('GigaChat OAuth: в ответе нет access_token');
 
@@ -101,7 +118,7 @@ async function yandexAsk(key, folderId, system, prompt) {
       ],
     }),
   });
-  if (!res.ok) throw await readError(res, 'YandexGPT (проверьте API-ключ и Folder ID)');
+  if (!res.ok) throw await readError(res, 'YandexGPT (проверьте YANDEX_API_KEY и YANDEX_FOLDER_ID)');
   const data = await res.json();
   const text = data.result && data.result.alternatives && data.result.alternatives[0]
     && data.result.alternatives[0].message && data.result.alternatives[0].message.text;
@@ -110,30 +127,37 @@ async function yandexAsk(key, folderId, system, prompt) {
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders });
-    if (request.method !== 'POST') return jsonResponse({ ok: false, error: 'Метод не поддержован: используйте POST' }, 405);
+
+    // GET — статус: какие агенты настроены
+    if (request.method === 'GET') {
+      return jsonResponse({ ok: true, agents: agents(env || {}) });
+    }
+    if (request.method !== 'POST') return jsonResponse({ ok: false, error: 'Метод не поддержован' }, 405);
 
     let body;
     try { body = await request.json(); } catch (e) {
       return jsonResponse({ ok: false, error: 'Тело запроса — невалидный JSON' }, 400);
     }
     const provider = body.provider;
-    const key = body.authKey || body.apiKey || '';
-    const folderId = body.folderId || '';
     const system = body.system || 'Ты — помощник.';
     const prompt = body.prompt || '';
-
     if (!provider || !prompt) return jsonResponse({ ok: false, error: 'Нужны поля provider и prompt' }, 400);
+
+    // Ключ: сначала секрет воркера, затем (для совместимости) ключ из запроса
+    const gigaKey = (env && env.GIGACHAT_KEY) || body.authKey || '';
+    const yaKey = (env && env.YANDEX_API_KEY) || body.apiKey || '';
+    const yaFolder = (env && env.YANDEX_FOLDER_ID) || body.folderId || '';
 
     try {
       let text;
       if (provider === 'gigachat') {
-        if (!key) return jsonResponse({ ok: false, error: 'Для GigaChat нужен ключ авторизации (authKey)' }, 400);
-        text = await gigachatAsk(key, system, prompt);
+        if (!gigaKey) return jsonResponse({ ok: false, error: 'GigaChat не настроен: добавьте секрет GIGACHAT_KEY в настройки воркера' }, 400);
+        text = await gigachatAsk(gigaKey, system, prompt);
       } else if (provider === 'yandexgpt') {
-        if (!key || !folderId) return jsonResponse({ ok: false, error: 'Для YandexGPT нужны apiKey и folderId' }, 400);
-        text = await yandexAsk(key, folderId, system, prompt);
+        if (!yaKey || !yaFolder) return jsonResponse({ ok: false, error: 'YandexGPT не настроен: добавьте секреты YANDEX_API_KEY и YANDEX_FOLDER_ID в настройки воркера' }, 400);
+        text = await yandexAsk(yaKey, yaFolder, system, prompt);
       } else {
         return jsonResponse({ ok: false, error: 'Неизвестный провайдер: ' + provider }, 400);
       }

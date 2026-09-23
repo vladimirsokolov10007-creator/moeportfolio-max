@@ -322,36 +322,30 @@
 
       <!-- Настройки ИИ -->
       <div class="card-box" id="aiSettingsBox">
-        <h3>⚙️ Настройки ИИ</h3>
-        <p class="hint">Ключи хранятся только на вашем устройстве. Нужен бесплатный прокси — <span id="aiProxyHelpLink" class="link-btn">как настроить</span></p>
+        <h3>⚙️ Подключение ИИ</h3>
+        <p class="hint">Выберите агента — ключи настраиваются один раз в прокси (<span id="aiProxyHelpLink" class="link-btn">как подключить</span>), в приложение они не вводятся</p>
         <div class="field">
-          <label>Провайдер</label>
+          <label>ИИ-агент</label>
           <select id="aiProvider">
             <option value="gigachat">GigaChat (Сбер)</option>
             <option value="yandexgpt">YandexGPT (Яндекс)</option>
           </select>
-        </div>
-        <div class="field" id="aiKeyField">
-          <label id="aiKeyLabel">Ключ авторизации GigaChat</label>
-          <input type="password" id="aiKey" placeholder="" autocomplete="off">
-        </div>
-        <div class="field" id="aiFolderField" style="display:none">
-          <label>Идентификатор каталога (Folder ID)</label>
-          <input type="text" id="aiFolder" placeholder="b1g..." autocomplete="off">
+          <div id="aiStatus" style="font-size:12.5px;margin-top:6px;color:var(--text2)"></div>
         </div>
         <div class="field">
           <label>URL прокси</label>
           <input type="text" id="aiProxy" placeholder="https://ваш-worker.workers.dev" autocomplete="off">
         </div>
-        <button class="btn btn-secondary" id="btnAiSave" style="width:100%">💾 Сохранить настройки</button>
+        <button class="btn btn-secondary" id="btnAiSave" style="width:100%">💾 Сохранить</button>
       </div>
       <div class="ai-note" id="aiProxyHelp" style="display:none">
-        Прямой вызов GigaChat/YandexGPT из браузера блокируется CORS, поэтому нужен прокси.<br><br>
-        1. Откройте <b>dash.cloudflare.com</b> → зарегистрируйтесь (бесплатно, без карты)<br>
-        2. Workers &amp; Pages → Create Worker → Deploy<br>
-        3. Replace the default code → вставьте код из файла <b>worker.js</b> репозитория → Deploy<br>
-        4. Скопируйте URL вида <b>https://имя.workers.dev</b> в поле «URL прокси» выше<br><br>
-        Ключи: GigaChat — developers.sber.ru (проект → GigaChat API → данные авторизации). YandexGPT — cloud.yandex.ru (сервисный аккаунт → ключ).
+        Прямой вызов GigaChat/YandexGPT из браузера блокируется CORS, поэтому нужен единоразовая настройка прокси (~5 минут).<br><br>
+        <b>1.</b> Откройте <b>dash.cloudflare.com</b> → зарегистрируйтесь (бесплатно, без карты)<br>
+        <b>2.</b> Workers &amp; Pages → Create Worker → Deploy<br>
+        <b>3.</b> «Edit code» → удалите весь код → вставьте код из файла <b>worker.js</b> (в репозитории приложения) → Deploy<br>
+        <b>4.</b> Settings → Variables and Secrets → добавьте секрет <b>GIGACHAT_KEY</b> — Authorization Key с developers.sber.ru (или <b>YANDEX_API_KEY</b> + <b>YANDEX_FOLDER_ID</b> с cloud.yandex.ru)<br>
+        <b>5.</b> Скопируйте URL вида <b>https://имя.workers.dev</b> в поле «URL прокси» выше<br><br>
+        Всё: в приложении остаётся только выбрать агента. Проверить настройку можно, открыв URL прокси в браузере.
       </div>
 
       <!-- Форма резюме -->
@@ -1007,7 +1001,7 @@ function closeApp() {
 }
 
 /* ---------- Резюме с помощью ИИ (GigaChat / YandexGPT через прокси) ---------- */
-let aiSettings = { provider: 'gigachat', key: '', folder: '', proxy: '' };
+let aiSettings = { provider: 'gigachat', proxy: '' };
 let lastResumeText = '';
 const AI_KEY = 'moeportfolio_ai_v1';
 
@@ -1040,20 +1034,39 @@ async function saveAiSettings() {
   try { localStorage.setItem(AI_KEY, str); } catch (e) {}
 }
 function aiConfigured() {
-  return !!(aiSettings.key && aiSettings.proxy && (aiSettings.provider !== 'yandexgpt' || aiSettings.folder));
+  return !!aiSettings.proxy;
 }
 function fillAiForm() {
   document.getElementById('aiProvider').value = aiSettings.provider || 'gigachat';
-  document.getElementById('aiKey').value = aiSettings.key || '';
-  document.getElementById('aiFolder').value = aiSettings.folder || '';
   document.getElementById('aiProxy').value = aiSettings.proxy || '';
-  updateProviderFields();
+  checkAgents();
 }
-function updateProviderFields() {
-  const p = document.getElementById('aiProvider').value;
-  document.getElementById('aiFolderField').style.display = p === 'yandexgpt' ? 'block' : 'none';
-  document.getElementById('aiKeyLabel').textContent = p === 'yandexgpt' ? 'API-ключ Yandex Cloud' : 'Ключ авторизации GigaChat (Authorization Key)';
-  document.getElementById('aiKey').placeholder = p === 'yandexgpt' ? 'AQVN...' : 'MDAxZD... (из кабинета developers.sber.ru)';
+// Спрашиваем у прокси, какие агенты настроены (секреты воркера)
+async function checkAgents() {
+  const el = document.getElementById('aiStatus');
+  if (!aiSettings.proxy) { el.textContent = '⚠️ Укажите URL прокси'; return; }
+  el.textContent = '⏳ Проверяем подключение…';
+  try {
+    const res = await fetch(aiSettings.proxy, {
+      method: 'GET',
+      signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined
+    });
+    const data = await res.json();
+    if (!data.ok || !data.agents) throw new Error('bad');
+    const a = data.agents;
+    el.innerHTML =
+      (a.gigachat ? '✅' : '⛔') + ' GigaChat (Сбер) &nbsp;·&nbsp; ' + (a.yandexgpt ? '✅' : '⛔') + ' YandexGPT (Яндекс)';
+    const sel = document.getElementById('aiProvider');
+    if (!a[sel.value]) {
+      if (sel.value === 'gigachat' && a.yandexgpt) sel.value = 'yandexgpt';
+      else if (sel.value === 'yandexgpt' && a.gigachat) sel.value = 'gigachat';
+    }
+    if (!a.gigachat && !a.yandexgpt) {
+      el.innerHTML += '<br>Агенты не настроены — добавьте секреты в настройках воркера';
+    }
+  } catch (e) {
+    el.textContent = '⚠️ Прокси не отвечает — проверьте URL (откройте его в браузере)';
+  }
 }
 function openResume() {
   haptic('light');
@@ -1097,8 +1110,6 @@ async function callAI(system, prompt) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       provider: aiSettings.provider,
-      authKey: aiSettings.key,
-      folderId: aiSettings.folder,
       system, prompt
     })
   });
@@ -1162,7 +1173,6 @@ function renderResumePages(text) {
 }
 document.getElementById('btnResume').onclick = openResume;
 document.getElementById('btnResumeBack').onclick = () => { haptic('soft'); showView('list'); };
-document.getElementById('aiProvider').onchange = updateProviderFields;
 document.getElementById('aiProxyHelpLink').onclick = () => {
   haptic('soft');
   const el = document.getElementById('aiProxyHelp');
@@ -1172,18 +1182,17 @@ document.getElementById('btnAiSave').onclick = async () => {
   haptic('medium');
   aiSettings = {
     provider: document.getElementById('aiProvider').value,
-    key: document.getElementById('aiKey').value.trim(),
-    folder: document.getElementById('aiFolder').value.trim(),
     proxy: document.getElementById('aiProxy').value.trim().replace(/\/+$/, '')
   };
   await saveAiSettings();
   hapticSuccess();
-  toast('Настройки ИИ сохранены ✓');
+  toast('Подключение сохранено ✓');
+  checkAgents();
 };
 document.getElementById('btnGenerate').onclick = async () => {
   if (!docs.length) { toast('Сначала добавьте документы в портфолио'); return; }
   if (!aiConfigured()) {
-    toast('Заполните настройки ИИ: ключ и URL прокси');
+    toast('Укажите URL прокси в настройках подключения');
     document.getElementById('aiSettingsBox').scrollIntoView({ behavior: 'smooth' });
     return;
   }
