@@ -350,8 +350,15 @@
 
       <!-- Форма резюме -->
       <div class="card-box">
-        <h3>🤖 Резюме на основе достижений</h3>
-        <p class="hint" id="resumeFormHint">ИИ составит резюме из документов вашего портфолио</p>
+        <h3>📄 Резюме на основе достижений</h3>
+        <p class="hint" id="resumeFormHint">Офлайн-режим работает без настройки; ИИ-режим требует прокси</p>
+        <div class="field">
+          <label>Режим составления</label>
+          <select id="rMode">
+            <option value="offline">📄 Офлайн — шаблоны (без настройки)</option>
+            <option value="ai">🤖 ИИ — GigaChat / YandexGPT (нужен прокси)</option>
+          </select>
+        </div>
         <div class="field">
           <label>ФИО</label>
           <input type="text" id="rName" placeholder="Иванова Анна Сергеевна" maxlength="80">
@@ -1071,12 +1078,18 @@ async function checkAgents() {
 function openResume() {
   haptic('light');
   fillAiForm();
+  try {
+    const savedMode = localStorage.getItem(RMODE_KEY);
+    if (savedMode === 'offline' || savedMode === 'ai') document.getElementById('rMode').value = savedMode;
+  } catch (e) {}
   const u = WebApp && WebApp.initDataUnsafe && WebApp.initDataUnsafe.user;
   if (u && !document.getElementById('rName').value) {
     document.getElementById('rName').value = [u.first_name, u.last_name].filter(Boolean).join(' ');
   }
   document.getElementById('resumeFormHint').textContent =
-    docs.length ? `ИИ составит резюме из ${docs.length} ${plural(docs.length, 'документа', 'документов', 'документов')} вашего портфолио` : 'Сначала добавьте документы в портфолио';
+    docs.length
+      ? `Офлайн работает без настройки · ИИ-режим составит резюме из ${docs.length} ${plural(docs.length, 'документа', 'документов', 'документов')}`
+      : 'Документов нет — офлайн-режим составит резюме из сведений о себе, либо добавьте документы';
   showView('resume');
 }
 function plural(n, one, few, many) {
@@ -1084,6 +1097,89 @@ function plural(n, one, few, many) {
   if (m === 1 && h !== 11) return one;
   if (m >= 2 && m <= 4 && (h < 12 || h > 14)) return few;
   return many;
+}
+/* ---------- Офлайн-генератор резюме (шаблоны, без ИИ и сети) ---------- */
+const RMODE_KEY = 'moeportfolio_rmode_v1';
+const GOAL_TEXT = {
+  'работа': t => 'Трудоустройство / стажировка' + (t ? ': ' + t : ''),
+  'конкурс': t => 'Участие в конкурсе или грантовой программе' + (t ? ' — ' + t : ''),
+  'учеба': t => 'Поступление в учебное заведение' + (t ? ' — ' + t : ''),
+  'иное': t => t || 'Представление достижений и профессиональный рост'
+};
+const CAT_ORDER = ['Диплом', 'Сертификат', 'Свидетельство', 'Грамота'];
+const CAT_SKILLS = {
+  'Диплом': 'результаты в конкурсах, отмеченные дипломами',
+  'Сертификат': 'подтверждённые знания и пройденное обучение',
+  'Свидетельство': 'подтверждённое участие в программах и мероприятиях',
+  'Грамота': 'признание со стороны организаций и жюри',
+  'Другое': 'разнообразный опыт участия в мероприятиях'
+};
+function buildOfflineResume() {
+  const name = document.getElementById('rName').value.trim();
+  const goal = document.getElementById('rGoal').value;
+  const target = document.getElementById('rTarget').value.trim();
+  const extra = document.getElementById('rExtra').value.trim();
+  const size = document.getElementById('rSize').value;
+  const sorted = [...docs].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const groups = new Map();
+  for (const d of sorted) {
+    const c = d.category || 'Другое';
+    if (!groups.has(c)) groups.set(c, []);
+    groups.get(c).push(d);
+  }
+  const cats = [...groups.keys()].sort((a, b) => {
+    const ia = CAT_ORDER.indexOf(a), ib = CAT_ORDER.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b, 'ru');
+  });
+  const docLine = (d, withDesc) => {
+    let s = d.title || 'Без названия';
+    if (d.org) s += ' — ' + d.org;
+    if (d.date) s += ' (' + d.date.slice(0, 4) + ')';
+    if (withDesc && d.desc) s += '. ' + d.desc;
+    return '- ' + s;
+  };
+  const L = [];
+  L.push('# ' + (name || 'Резюме'));
+  L.push('');
+  L.push('**Цель:** ' + (GOAL_TEXT[goal] ? GOAL_TEXT[goal](target) : target || GOAL_TEXT['иное']('')));
+  L.push('');
+  if (sorted.length) {
+    L.push('## Достижения и награды');
+    for (const c of cats) {
+      L.push('### ' + c);
+      for (const d of groups.get(c)) L.push(docLine(d, size === 'подробное'));
+      L.push('');
+    }
+  }
+  if (size !== 'краткое') {
+    if (extra) {
+      L.push('## Сведения обо мне');
+      extra.split('\n').map(s => s.trim()).filter(Boolean).forEach(s => L.push('- ' + s.replace(/^[•\-–*]\s*/, '')));
+      L.push('');
+    }
+    const skills = cats.map(c => CAT_SKILLS[c] || CAT_SKILLS['Другое'])
+      .filter((v, i, a) => a.indexOf(v) === i);
+    if (skills.length) {
+      L.push('## Ключевые навыки');
+      skills.forEach(s => L.push('- ' + s));
+      L.push('');
+    }
+    if (sorted.length) {
+      const stats = cats.map(c => c.toLowerCase() + ' — ' + groups.get(c).length).join(', ');
+      L.push('## О себе');
+      L.push((name || 'Автор портфолио') + ' — участник конкурсов и мероприятий; в портфолио '
+        + sorted.length + ' ' + plural(sorted.length, 'документ', 'документа', 'документов')
+        + ' (' + stats + '). Стремится к профессиональному росту'
+        + (target ? ' в сфере: ' + target : '') + '.');
+      L.push('');
+    }
+  }
+  if (size === 'подробное' && sorted.length) {
+    L.push('## Статистика портфолио');
+    for (const c of cats) L.push('- ' + c + ': ' + groups.get(c).length);
+    L.push('');
+  }
+  return L.join('\n').trim();
 }
 function buildResumePrompt() {
   const name = document.getElementById('rName').value.trim();
@@ -1189,7 +1285,22 @@ document.getElementById('btnAiSave').onclick = async () => {
   toast('Подключение сохранено ✓');
   checkAgents();
 };
+document.getElementById('rMode').onchange = () => {
+  try { localStorage.setItem(RMODE_KEY, document.getElementById('rMode').value); } catch (e) {}
+};
 document.getElementById('btnGenerate').onclick = async () => {
+  const mode = document.getElementById('rMode').value;
+  if (mode === 'offline') {
+    // Локальный генератор: никаких сетевых запросов и настроек
+    haptic('medium');
+    lastResumeText = buildOfflineResume();
+    document.getElementById('resumeResult').innerHTML = mdToHtml(lastResumeText);
+    document.getElementById('aiBadge').textContent = '📄 Составлено офлайн · шаблоны';
+    document.getElementById('resumeResultBox').style.display = 'block';
+    document.getElementById('resumeResultBox').scrollIntoView({ behavior: 'smooth' });
+    hapticSuccess();
+    return;
+  }
   if (!docs.length) { toast('Сначала добавьте документы в портфолио'); return; }
   if (!aiConfigured()) {
     toast('Укажите URL прокси в настройках подключения');
