@@ -159,6 +159,33 @@
     transition:.25s;pointer-events:none;max-width:86%;text-align:center;
   }
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  /* Шторка «Поделиться» */
+  .sheet-back{position:fixed;inset:0;background:rgba(20,10,40,.5);display:none;align-items:flex-end;justify-content:center;z-index:50;}
+  .sheet-back.open{display:flex;}
+  .sheet{background:#fff;border-radius:20px 20px 0 0;padding:18px 18px 26px;max-width:520px;width:100%;}
+  .sheet h3{margin:0 0 4px;font-size:16px;}
+  .sheet .hint{color:var(--text2);font-size:12.5px;margin:0 0 14px;}
+  .sheet .opt{display:flex;align-items:center;gap:12px;width:100%;padding:13px 14px;border:1px solid var(--border);border-radius:13px;background:#fff;margin-bottom:10px;font-size:14.5px;font-weight:600;color:var(--text);cursor:pointer;text-align:left;font-family:inherit;transition:transform .12s;}
+  .sheet .opt:active{transform:scale(.98);}
+  .sheet .opt .ic{font-size:20px;flex-shrink:0;}
+  .sheet .opt small{display:block;font-weight:400;color:var(--text2);font-size:12px;margin-top:2px;}
+  /* Публичная карточка (открытие по ссылке) */
+  .shared-wrap{padding:22px 16px 40px;display:flex;flex-direction:column;gap:14px;}
+  .shared-card{background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 8px 30px rgba(60,20,140,.15);border:1px solid var(--border);}
+  .shared-band{background:linear-gradient(135deg,#7b3ff2,#c084fc);color:#fff;text-align:center;padding:26px 18px 20px;}
+  .shared-band .seal{font-size:44px;margin-bottom:8px;}
+  .shared-band .cat{display:inline-block;background:rgba(255,255,255,.22);padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700;margin-bottom:10px;}
+  .shared-band h2{margin:0;font-size:21px;line-height:1.3;}
+  .shared-band .org{margin:8px 0 0;font-size:14px;opacity:.92;}
+  .shared-body{padding:16px 18px;}
+  .shared-img{max-height:300px;overflow:hidden;background:#f6f2ff;}
+  .shared-img img{width:100%;display:block;object-fit:cover;}
+  .shared-foot{text-align:center;color:var(--text2);font-size:12.5px;padding:0 20px;}
+  .shared-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border);font-size:14px;}
+  .shared-row:first-child{border-top:none;}
+  .shared-row .ic{font-size:22px;flex-shrink:0;}
+  .shared-row small{display:block;color:var(--text2);font-size:12px;}
+  .share-btn-mini{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:10px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:inherit;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -169,10 +196,11 @@
     <div class="header">
       <div class="header-row">
         <div class="avatar" id="avatar">👤</div>
-        <div>
+        <div style="flex:1;min-width:0">
           <h1>МоёПортфолио</h1>
           <div class="sub" id="userGreeting">Ваши достижения под рукой</div>
         </div>
+        <button class="share-btn-mini" id="btnShareAll" title="Поделиться портфолио">📤 Поделиться</button>
       </div>
       <div class="stats">
         <div class="stat"><b id="statCount">0</b><span>документов</span></div>
@@ -252,6 +280,25 @@
       <button class="btn btn-primary" id="btnSave">💾 Сохранить</button>
     </div>
   </section>
+
+  <!-- ============ ПУБЛИЧНАЯ КАРТОЧКА (открытие по ссылке) ============ -->
+  <section class="view" id="view-shared">
+    <div class="shared-wrap">
+      <div class="shared-card">
+        <div class="shared-band">
+          <div class="seal" id="shSeal">🏆</div>
+          <span class="cat" id="shCat">Достижение</span>
+          <h2 id="shTitle"></h2>
+          <p class="org" id="shOrg"></p>
+        </div>
+        <div class="shared-img" id="shImgWrap" style="display:none"><img id="shImg" alt=""></div>
+        <div class="shared-body" id="shBody"></div>
+      </div>
+      <button class="btn btn-primary" id="btnShSave">💾 Сохранить к себе в портфолио</button>
+      <button class="btn btn-secondary" id="btnShShare">📤 Поделиться дальше</button>
+      <div class="shared-foot">Карточка создана в мини-приложении «МоёПортфолио» для MAX</div>
+    </div>
+  </section>
 </div>
 
 <!-- Модальное окно подтверждения -->
@@ -263,6 +310,17 @@
       <button class="btn btn-secondary" id="modalCancel">Отмена</button>
       <button class="btn btn-danger" id="modalOk">Удалить</button>
     </div>
+  </div>
+</div>
+
+<!-- Шторка «Поделиться» -->
+<div class="sheet-back" id="sheetBack">
+  <div class="sheet">
+    <h3>Поделиться достижением</h3>
+    <p class="hint">Ссылка откроет красивую карточку — получатель сможет сохранить её к себе в портфолио</p>
+    <button class="opt" id="shOptLink"><span class="ic">🔗</span><span>Ссылкой на карточку<small>Достижение откроется как веб-страница</small></span></button>
+    <button class="opt" id="shOptText"><span class="ic">📝</span><span>Текстом в чат MAX<small>Краткое описание сообщением</small></span></button>
+    <button class="opt" id="shOptCancel"><span class="ic">✖️</span><span>Отмена</span></button>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -291,7 +349,10 @@ const store = {
   async get() {
     if (WebApp && WebApp.DeviceStorage) {
       try {
-        const res = await WebApp.DeviceStorage.getItem(STORAGE_KEY);
+        const res = await Promise.race([
+          WebApp.DeviceStorage.getItem(STORAGE_KEY),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('ds-timeout')), 3000))
+        ]);
         if (res && res.value) return JSON.parse(res.value);
       } catch (e) { /* не поддерживается — падаем в localStorage */ }
     }
@@ -300,7 +361,12 @@ const store = {
   async set(value) {
     const str = JSON.stringify(value);
     if (WebApp && WebApp.DeviceStorage) {
-      try { await WebApp.DeviceStorage.setItem(STORAGE_KEY, str); } catch (e) {}
+      try {
+        await Promise.race([
+          WebApp.DeviceStorage.setItem(STORAGE_KEY, str),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('ds-timeout')), 3000))
+        ]);
+      } catch (e) { /* не поддерживается — пишем в localStorage */ }
     }
     try { localStorage.setItem(STORAGE_KEY, str); } catch (e) {}
   }
@@ -340,6 +406,8 @@ function showView(name) {
   document.getElementById('view-' + name).classList.add('active');
   currentView = name;
   if (name !== 'form') { formDirty = false; try { WebApp && WebApp.disableClosingConfirmation(); } catch (e) {} }
+  const fab = document.getElementById('fabAdd');
+  if (fab) fab.style.display = name === 'shared' ? 'none' : 'flex';
   updateBackButton();
   window.scrollTo(0, 0);
 }
@@ -363,6 +431,8 @@ function onBack() {
     showView(editingId ? 'detail' : 'list');
   } else if (currentView === 'detail') {
     showView('list');
+  } else if (currentView === 'shared') {
+    closeApp();
   }
 }
 
@@ -452,21 +522,218 @@ document.getElementById('btnDelete').onclick = async () => {
 };
 document.getElementById('btnShare').onclick = () => {
   haptic('light');
+  document.getElementById('sheetBack').classList.add('open');
+};
+document.getElementById('shOptCancel').onclick = () => {
+  haptic('soft');
+  document.getElementById('sheetBack').classList.remove('open');
+};
+document.getElementById('sheetBack').onclick = e => {
+  if (e.target.id === 'sheetBack') document.getElementById('sheetBack').classList.remove('open');
+};
+document.getElementById('shOptText').onclick = () => {
+  haptic('light');
+  document.getElementById('sheetBack').classList.remove('open');
   const d = docs.find(x => x.id === detailId);
   if (!d) return;
   const text = `🏆 ${d.title}\n${d.org ? 'Мероприятие: ' + d.org + '\n' : ''}${d.date ? 'Дата: ' + fmtDate(d.date) : ''}\n\nХраню достижения в мини-приложении «МоёПортфолио» для MAX`;
+  sendShareText(text);
+};
+document.getElementById('shOptLink').onclick = async () => {
+  haptic('medium');
+  document.getElementById('sheetBack').classList.remove('open');
+  const d = docs.find(x => x.id === detailId);
+  if (!d) return;
+  toast('Формируем ссылку…');
+  const payload = { v: 1, t: 'doc', title: d.title, category: d.category, org: d.org || '', date: d.date || '', desc: d.desc || '' };
+  if (d.image) payload.img = await shrinkImage(d.image, 560, 0.65);
+  const link = await buildShareLink(payload);
+  await sendShareText(link);
+};
+function sendShareText(text) {
   try {
     if (WebApp && WebApp.shareMaxContent) {
-      WebApp.shareMaxContent({ text }).then(({status}) => {
-        if (status === 'shared') { hapticSuccess(); toast('Отправлено'); }
-      }).catch(() => fallbackShare(text));
-    } else fallbackShare(text);
-  } catch (e) { fallbackShare(text); }
-};
+      const p = WebApp.shareMaxContent({ text });
+      // если мост не отвечает (веб/десктоп) — уходим в fallback по таймауту
+      Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('share-timeout')), 2000))])
+        .then(({status}) => { if (status === 'shared') { hapticSuccess(); toast('Отправлено'); } })
+        .catch(() => fallbackShare(text));
+      return;
+    }
+  } catch (e) {}
+  fallbackShare(text);
+}
 function fallbackShare(text) {
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(() => toast('Текст скопирован — вставьте в чат'));
+  const done = () => toast('Скопировано — вставьте в чат');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => toast('Не удалось скопировать автоматически'));
   } else toast('Скопируйте текст вручную');
+}
+
+/* ---------- Поделиться ссылкой: упаковка данных в URL ---------- */
+function u8ToB64url(u8) {
+  let s = '';
+  const CH = 0x8000;
+  for (let i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64urlToU8(b) {
+  b = b.replace(/-/g, '+').replace(/_/g, '/');
+  while (b.length % 4) b += '=';
+  const s = atob(b);
+  const u8 = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) u8[i] = s.charCodeAt(i);
+  return u8;
+}
+async function packShare(obj) {
+  const bytes = new TextEncoder().encode(JSON.stringify(obj));
+  if (window.CompressionStream) {
+    try {
+      const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+      return u8ToB64url(new Uint8Array(await new Response(stream).arrayBuffer()));
+    } catch (e) {}
+  }
+  return u8ToB64url(bytes);
+}
+async function unpackShare(str) {
+  const u8 = b64urlToU8(str);
+  if (window.DecompressionStream) {
+    try {
+      const stream = new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      return JSON.parse(new TextDecoder().decode(await new Response(stream).arrayBuffer()));
+    } catch (e) {}
+  }
+  return JSON.parse(new TextDecoder().decode(u8));
+}
+function shrinkImage(dataUrl, max, q) {
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > max || h > max) { const k = max / Math.max(w, h); w = Math.round(w * k); h = Math.round(h * k); }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      res(c.toDataURL('image/jpeg', q));
+    };
+    img.onerror = () => res(null);
+    img.src = dataUrl;
+  });
+}
+async function buildShareLink(payload) {
+  const base = location.origin + location.pathname;
+  let link = base + '?s=' + await packShare(payload);
+  if (link.length > 9000 && payload.img) {
+    payload = { ...payload, img: null };
+    link = base + '?s=' + await packShare(payload);
+    toast('Фото не вошло — ссылка была слишком длинной');
+  }
+  return link;
+}
+
+/* ---------- Публичная карточка (открытие по ссылке ?s=...) ---------- */
+let sharedPayload = null;
+const SHARE_EMOJI = { 'Грамота':'📜','Сертификат':'🎓','Диплом':'🏆','Свидетельство':'📃','Другое':'📄' };
+
+async function tryOpenShared() {
+  const p = new URLSearchParams(location.search).get('s');
+  if (!p) return false;
+  try {
+    sharedPayload = await unpackShare(p);
+  } catch (e) {
+    sharedPayload = { t: 'err' };
+  }
+  renderShared();
+  showView('shared');
+  document.getElementById('fabAdd').style.display = 'none';
+  return true;
+}
+function renderShared() {
+  const p = sharedPayload;
+  const body = document.getElementById('shBody');
+  const btnSave = document.getElementById('btnShSave');
+  if (!p || p.t === 'err') {
+    document.getElementById('shSeal').textContent = '⚠️';
+    document.getElementById('shCat').textContent = 'Ошибка';
+    document.getElementById('shTitle').textContent = 'Ссылка недействительна';
+    document.getElementById('shOrg').textContent = '';
+    body.innerHTML = '<p class="desc" style="margin:0">Возможно, ссылка была обрезана при отправке. Попросите отправителя поделиться ещё раз.</p>';
+    btnSave.style.display = 'none';
+    return;
+  }
+  if (p.t === 'doc') {
+    document.getElementById('shSeal').textContent = SHARE_EMOJI[p.category] || '🏆';
+    document.getElementById('shCat').textContent = p.category || 'Достижение';
+    document.getElementById('shTitle').textContent = p.title || 'Без названия';
+    document.getElementById('shOrg').textContent = p.org || '';
+    body.innerHTML =
+      (p.desc ? `<p class="desc" style="margin:0 0 10px">${escapeHtml(p.desc)}</p>` : '') +
+      `<div class="kv"><span>Дата получения</span><b>${fmtDate(p.date)}</b></div>`;
+    if (p.img) {
+      document.getElementById('shImg').src = p.img;
+      document.getElementById('shImgWrap').style.display = 'block';
+    }
+    btnSave.style.display = 'block';
+    btnSave.textContent = '💾 Сохранить к себе в портфолио';
+  } else if (p.t === 'list') {
+    document.getElementById('shSeal').textContent = '🏆';
+    document.getElementById('shCat').textContent = 'Портфолио достижений';
+    document.getElementById('shTitle').textContent = (p.name ? p.name + ' — ' : '') + (p.docs ? p.docs.length : 0) + ' документов';
+    document.getElementById('shOrg').textContent = '';
+    const items = (p.docs || []).map(d =>
+      `<div class="shared-row"><span class="ic">${SHARE_EMOJI[d.category] || '📄'}</span><span><b>${escapeHtml(d.title)}</b>${d.org ? `<small>${escapeHtml(d.org)}</small>` : ''}</span><span style="margin-left:auto;color:var(--text2);font-size:12px;white-space:nowrap">${fmtDate(d.date)}</span></div>`).join('');
+    body.innerHTML = items || '<p class="desc" style="margin:0">Список пуст</p>';
+    btnSave.style.display = 'block';
+    btnSave.textContent = '💾 Сохранить все к себе в портфолио';
+  }
+}
+document.getElementById('btnShSave').onclick = async () => {
+  haptic('medium');
+  const p = sharedPayload;
+  if (!p) return;
+  const existing = new Set(docs.map(d => (d.title || '') + '|' + (d.date || '') + '|' + (d.org || '')));
+  const addOne = raw => {
+    const key = (raw.title || '') + '|' + (raw.date || '') + '|' + (raw.org || '');
+    if (existing.has(key)) return false;
+    existing.add(key);
+    docs.push({ id: 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), createdAt: new Date().toISOString(), title: raw.title || 'Без названия', category: raw.category || 'Другое', org: raw.org || '', date: raw.date || '', desc: raw.desc || '', image: raw.img || null });
+    return true;
+  };
+  let added = 0;
+  if (p.t === 'doc') added = addOne(p) ? 1 : 0;
+  else if (p.t === 'list') (p.docs || []).forEach(d => { if (addOne(d)) added++; });
+  if (!added) { toast('Уже есть в вашем портфолио'); return; }
+  await store.set(docs);
+  renderList();
+  hapticSuccess();
+  toast(added === 1 ? 'Сохранено в ваше портфолио ✓' : `Сохранено документов: ${added} ✓`);
+  document.getElementById('btnShSave').textContent = '✓ Сохранено';
+  document.getElementById('btnShSave').disabled = true;
+};
+document.getElementById('btnShShare').onclick = async () => {
+  haptic('light');
+  await sendShareText(location.href);
+};
+document.getElementById('btnShareAll').onclick = async () => {
+  haptic('medium');
+  if (!docs.length) { toast('Портфолио пока пустое'); return; }
+  toast('Формируем ссылку…');
+  const u = WebApp && WebApp.initDataUnsafe && WebApp.initDataUnsafe.user;
+  const name = u ? [u.first_name, u.last_name].filter(Boolean).join(' ') : '';
+  const payload = {
+    v: 1, t: 'list', name,
+    docs: docs.map(({ title, category, org, date, desc }) => ({ title, category, org, date, desc }))
+  };
+  const link = await buildShareLink(payload);
+  if (link.length > 12000) {
+    fallbackShare('Моё портфолио в «МоёПортфолио»: ' + docs.length + ' документов — слишком много для ссылки, поделитесь отдельными достижениями');
+    return;
+  }
+  await sendShareText(link);
+};
+function closeApp() {
+  try { if (WebApp && WebApp.close) { WebApp.close(); return; } } catch (e) {}
+  try { window.history.back(); } catch (e) {}
 }
 
 /* ---------- Форма ---------- */
@@ -560,7 +827,10 @@ document.getElementById('btnSave').onclick = async () => {
 document.getElementById('searchInput').addEventListener('input', renderList);
 
 /* ---------- Инициализация ---------- */
-(function init() {
+(async function init() {
+  // Если открыли ссылкой «поделиться» (?s=...) — показываем публичную карточку
+  const isShared = await tryOpenShared();
+
   // Профиль пользователя MAX
   try {
     const u = WebApp && WebApp.initDataUnsafe && WebApp.initDataUnsafe.user;
@@ -573,7 +843,7 @@ document.getElementById('searchInput').addEventListener('input', renderList);
     }
   } catch (e) {}
 
-  store.get().then(data => { docs = Array.isArray(data) ? data : []; renderList(); });
+  store.get().then(data => { docs = Array.isArray(data) ? data : []; if (!isShared) renderList(); });
   // Контекст запуска (можно адаптировать интерфейс под tabbar)
   try {
     if (WebApp && WebApp.getLaunchContext) {
