@@ -159,6 +159,20 @@
     transition:.25s;pointer-events:none;max-width:86%;text-align:center;
   }
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  /* Экран «Резюме (ИИ)» */
+  .resume-wrap{padding:14px;display:flex;flex-direction:column;gap:14px;flex:1;}
+  .card-box{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;}
+  .card-box h3{margin:0 0 4px;font-size:16px;}
+  .card-box .hint{color:var(--text2);font-size:12.5px;margin:0 0 12px;}
+  .resume-result{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;white-space:pre-wrap;font-size:14.5px;line-height:1.6;}
+  .resume-result h1{font-size:20px;margin:0 0 10px;}
+  .resume-result h2{font-size:16px;color:var(--purple);margin:16px 0 8px;}
+  .resume-result ul{margin:6px 0;padding-left:20px;}
+  .ai-badge{display:inline-block;background:#e8f5e9;color:#2e7d32;font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px;margin-bottom:8px;}
+  .resume-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .resume-actions .btn{flex:1;min-width:130px;}
+  .link-btn{background:none;border:none;color:var(--purple);font-size:13px;font-weight:600;cursor:pointer;padding:0;font-family:inherit;}
+  .ai-note{font-size:12px;color:var(--text2);background:#f4f2fa;border-radius:10px;padding:10px 12px;line-height:1.5;}
   /* Шторка «Поделиться» */
   .sheet-back{position:fixed;inset:0;background:rgba(20,10,40,.5);display:none;align-items:flex-end;justify-content:center;z-index:50;}
   .sheet-back.open{display:flex;}
@@ -200,6 +214,7 @@
           <h1>МоёПортфолио</h1>
           <div class="sub" id="userGreeting">Ваши достижения под рукой</div>
         </div>
+        <button class="share-btn-mini" id="btnResume" title="Резюме с помощью ИИ">🤖 Резюме</button>
         <button class="share-btn-mini" id="btnShareAll" title="Поделиться портфолио">📤 Поделиться</button>
       </div>
       <div class="stats">
@@ -297,6 +312,94 @@
       <button class="btn btn-primary" id="btnShSave">💾 Сохранить к себе в портфолио</button>
       <button class="btn btn-secondary" id="btnShShare">📤 Поделиться дальше</button>
       <div class="shared-foot">Карточка создана в мини-приложении «МоёПортфолио» для MAX</div>
+    </div>
+  </section>
+
+  <!-- ============ РЕЗЮМЕ (ИИ) ============ -->
+  <section class="view" id="view-resume">
+    <div class="resume-wrap">
+      <button class="btn-back" id="btnResumeBack">← Назад</button>
+
+      <!-- Настройки ИИ -->
+      <div class="card-box" id="aiSettingsBox">
+        <h3>⚙️ Настройки ИИ</h3>
+        <p class="hint">Ключи хранятся только на вашем устройстве. Нужен бесплатный прокси — <span id="aiProxyHelpLink" class="link-btn">как настроить</span></p>
+        <div class="field">
+          <label>Провайдер</label>
+          <select id="aiProvider">
+            <option value="gigachat">GigaChat (Сбер)</option>
+            <option value="yandexgpt">YandexGPT (Яндекс)</option>
+          </select>
+        </div>
+        <div class="field" id="aiKeyField">
+          <label id="aiKeyLabel">Ключ авторизации GigaChat</label>
+          <input type="password" id="aiKey" placeholder="" autocomplete="off">
+        </div>
+        <div class="field" id="aiFolderField" style="display:none">
+          <label>Идентификатор каталога (Folder ID)</label>
+          <input type="text" id="aiFolder" placeholder="b1g..." autocomplete="off">
+        </div>
+        <div class="field">
+          <label>URL прокси</label>
+          <input type="text" id="aiProxy" placeholder="https://ваш-worker.workers.dev" autocomplete="off">
+        </div>
+        <button class="btn btn-secondary" id="btnAiSave" style="width:100%">💾 Сохранить настройки</button>
+      </div>
+      <div class="ai-note" id="aiProxyHelp" style="display:none">
+        Прямой вызов GigaChat/YandexGPT из браузера блокируется CORS, поэтому нужен прокси.<br><br>
+        1. Откройте <b>dash.cloudflare.com</b> → зарегистрируйтесь (бесплатно, без карты)<br>
+        2. Workers &amp; Pages → Create Worker → Deploy<br>
+        3. Replace the default code → вставьте код из файла <b>worker.js</b> репозитория → Deploy<br>
+        4. Скопируйте URL вида <b>https://имя.workers.dev</b> в поле «URL прокси» выше<br><br>
+        Ключи: GigaChat — developers.sber.ru (проект → GigaChat API → данные авторизации). YandexGPT — cloud.yandex.ru (сервисный аккаунт → ключ).
+      </div>
+
+      <!-- Форма резюме -->
+      <div class="card-box">
+        <h3>🤖 Резюме на основе достижений</h3>
+        <p class="hint" id="resumeFormHint">ИИ составит резюме из документов вашего портфолио</p>
+        <div class="field">
+          <label>ФИО</label>
+          <input type="text" id="rName" placeholder="Иванова Анна Сергеевна" maxlength="80">
+        </div>
+        <div class="field">
+          <label>Цель резюме</label>
+          <select id="rGoal">
+            <option value="работа">Работа / стажировка</option>
+            <option value="конкурс">Участие в конкурсе / гранте</option>
+            <option value="учеба">Поступление в учебное заведение</option>
+            <option value="иное">Иное</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Должность / направление</label>
+          <input type="text" id="rTarget" placeholder="Например: junior-разработчик, дизайнер…" maxlength="120">
+        </div>
+        <div class="field">
+          <label>Дополнительные сведения (опыт, навыки, языки)</label>
+          <textarea id="rExtra" placeholder="Что-то, чего нет в документах портфолио…" maxlength="1500"></textarea>
+        </div>
+        <div class="field">
+          <label>Размер</label>
+          <select id="rSize">
+            <option value="краткое">Краткое (1 страница)</option>
+            <option value="стандартное" selected>Стандартное</option>
+            <option value="подробное">Подробное</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="btnGenerate" style="width:100%">✨ Составить резюме</button>
+      </div>
+
+      <!-- Результат -->
+      <div id="resumeResultBox" style="display:none">
+        <div style="margin-bottom:8px"><span class="ai-badge" id="aiBadge">Составлено ИИ</span></div>
+        <div class="resume-result" id="resumeResult"></div>
+        <div class="resume-actions" style="margin-top:12px">
+          <button class="btn btn-secondary" id="btnResumePdf">📄 Скачать PDF</button>
+          <button class="btn btn-secondary" id="btnResumeCopy">📋 Копировать</button>
+          <button class="btn btn-secondary" id="btnResumeAgain">🔄 Заново</button>
+        </div>
+      </div>
     </div>
   </section>
 </div>
@@ -430,6 +533,8 @@ function onBack() {
   } else if (currentView === 'form') {
     showView(editingId ? 'detail' : 'list');
   } else if (currentView === 'detail') {
+    showView('list');
+  } else if (currentView === 'resume') {
     showView('list');
   } else if (currentView === 'shared') {
     closeApp();
@@ -726,8 +831,8 @@ async function generatePortfolioPdf() {
   return buildPdf(pages.map(c => jpegBytesFromCanvas(c, 0.88)));
 }
 
-function downloadPdf(pdfBytes) {
-  const name = 'Portfolio_' + new Date().toISOString().slice(0, 10) + '.pdf';
+function downloadPdf(pdfBytes, name) {
+  name = name || 'Portfolio_' + new Date().toISOString().slice(0, 10) + '.pdf';
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -901,6 +1006,232 @@ function closeApp() {
   try { window.history.back(); } catch (e) {}
 }
 
+/* ---------- Резюме с помощью ИИ (GigaChat / YandexGPT через прокси) ---------- */
+let aiSettings = { provider: 'gigachat', key: '', folder: '', proxy: '' };
+let lastResumeText = '';
+const AI_KEY = 'moeportfolio_ai_v1';
+
+async function loadAiSettings() {
+  try {
+    let raw = null;
+    try {
+      if (WebApp && WebApp.SecureStorage) {
+        const r = await Promise.race([
+          WebApp.SecureStorage.getItem(AI_KEY),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('t')), 2000))
+        ]);
+        if (r && r.value) raw = r.value;
+      }
+    } catch (e) {}
+    if (!raw) raw = localStorage.getItem(AI_KEY);
+    if (raw) aiSettings = { ...aiSettings, ...JSON.parse(raw) };
+  } catch (e) {}
+}
+async function saveAiSettings() {
+  const str = JSON.stringify(aiSettings);
+  try {
+    if (WebApp && WebApp.SecureStorage) {
+      await Promise.race([
+        WebApp.SecureStorage.setItem(AI_KEY, str),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('t')), 2000))
+      ]);
+    }
+  } catch (e) {}
+  try { localStorage.setItem(AI_KEY, str); } catch (e) {}
+}
+function aiConfigured() {
+  return !!(aiSettings.key && aiSettings.proxy && (aiSettings.provider !== 'yandexgpt' || aiSettings.folder));
+}
+function fillAiForm() {
+  document.getElementById('aiProvider').value = aiSettings.provider || 'gigachat';
+  document.getElementById('aiKey').value = aiSettings.key || '';
+  document.getElementById('aiFolder').value = aiSettings.folder || '';
+  document.getElementById('aiProxy').value = aiSettings.proxy || '';
+  updateProviderFields();
+}
+function updateProviderFields() {
+  const p = document.getElementById('aiProvider').value;
+  document.getElementById('aiFolderField').style.display = p === 'yandexgpt' ? 'block' : 'none';
+  document.getElementById('aiKeyLabel').textContent = p === 'yandexgpt' ? 'API-ключ Yandex Cloud' : 'Ключ авторизации GigaChat (Authorization Key)';
+  document.getElementById('aiKey').placeholder = p === 'yandexgpt' ? 'AQVN...' : 'MDAxZD... (из кабинета developers.sber.ru)';
+}
+function openResume() {
+  haptic('light');
+  fillAiForm();
+  const u = WebApp && WebApp.initDataUnsafe && WebApp.initDataUnsafe.user;
+  if (u && !document.getElementById('rName').value) {
+    document.getElementById('rName').value = [u.first_name, u.last_name].filter(Boolean).join(' ');
+  }
+  document.getElementById('resumeFormHint').textContent =
+    docs.length ? `ИИ составит резюме из ${docs.length} ${plural(docs.length, 'документа', 'документов', 'документов')} вашего портфолио` : 'Сначала добавьте документы в портфолио';
+  showView('resume');
+}
+function plural(n, one, few, many) {
+  const m = n % 10, h = n % 100;
+  if (m === 1 && h !== 11) return one;
+  if (m >= 2 && m <= 4 && (h < 12 || h > 14)) return few;
+  return many;
+}
+function buildResumePrompt() {
+  const name = document.getElementById('rName').value.trim();
+  const goal = document.getElementById('rGoal').value;
+  const target = document.getElementById('rTarget').value.trim();
+  const extra = document.getElementById('rExtra').value.trim();
+  const size = document.getElementById('rSize').value;
+  const sorted = [...docs].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const lines = sorted.map((d, i) =>
+    `${i + 1}. [${d.category}] ${d.title}${d.org ? ' — ' + d.org : ''}${d.date ? ' (' + d.date.slice(0, 4) + ' г.)' : ''}${d.desc ? ': ' + d.desc : ''}`);
+  const system = 'Ты — профессиональный карьерный консультант. Составляешь резюме на русском языке. Используй ТОЛЬКО факты из предоставленных данных — ничего не выдумывай и не добавляй несуществующие достижения. Отвечай строго в формате Markdown: заголовки через #, списки через десятичные дефисы.';
+  const prompt =
+    `Составь ${size} резюме на русском языке.\n` +
+    `ФИО: ${name || 'не указано'}\n` +
+    `Цель: ${goal}${target ? '\nДолжность/направление: ' + target : ''}` +
+    (extra ? '\nДополнительные сведения обо мне: ' + extra : '') +
+    `\n\nМои достижения и документы (портфолио):\n${lines.join('\n')}\n\n` +
+    `Структура резюме: ФИО крупно; цель; раздел «Достижения и награды» — сгруппируй по категориям (дипломы, сертификаты, грамоты…), внутри групп от новых к старым, указывай год; раздел «Ключевые навыки» — выведи из сути достижений; короткий блок «О себе».`;
+  return { system, prompt };
+}
+async function callAI(system, prompt) {
+  const res = await fetch(aiSettings.proxy, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      provider: aiSettings.provider,
+      authKey: aiSettings.key,
+      folderId: aiSettings.folder,
+      system, prompt
+    })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) throw new Error(data.error || ('Ошибка прокси: HTTP ' + res.status));
+  return data.text;
+}
+function mdToHtml(md) {
+  return escapeHtml(md).split('\n').map(ln => {
+    const t = ln.trim();
+    if (t.startsWith('### ')) return '<h3>' + t.slice(4) + '</h3>';
+    if (t.startsWith('## ')) return '<h2>' + t.slice(3) + '</h2>';
+    if (t.startsWith('# ')) return '<h1>' + t.slice(2) + '</h1>';
+    if (t.startsWith('- ') || t.startsWith('* ')) return '<div>•&nbsp; ' + t.slice(2) + '</div>';
+    if (!t) return '<div style="height:10px"></div>';
+    return '<div>' + ln + '</div>';
+  }).join('').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+}
+function renderResumePages(text) {
+  const W = PAGE_W, H = PAGE_H, M = 110;
+  const pages = [];
+  const newCanvas = () => {
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+    return [c, ctx];
+  };
+  let [canvas, x] = newCanvas();
+  let y = M;
+  const newPage = () => {
+    x.font = '400 26px Arial, sans-serif'; x.fillStyle = '#9a94ad'; x.textAlign = 'center';
+    x.fillText('МоёПортфолио · MAX', W / 2, H - 50);
+    pages.push(canvas);
+    [canvas, x] = newCanvas();
+    y = M;
+  };
+  for (const raw of text.split('\n')) {
+    const t = raw.trim().replace(/\*\*/g, '');
+    let size = 30, bold = false, color = '#3a3450', lineH, txt = t, prefix = '';
+    if (t.startsWith('### ')) { size = 36; bold = true; color = '#7b3ff2'; txt = t.slice(4); lineH = 48; }
+    else if (t.startsWith('## ')) { size = 42; bold = true; color = '#7b3ff2'; txt = t.slice(3); lineH = 56; }
+    else if (t.startsWith('# ')) { size = 54; bold = true; color = '#1c1630'; txt = t.slice(2); lineH = 70; }
+    else if (t.startsWith('- ') || t.startsWith('* ')) { txt = t.slice(2); prefix = '•  '; lineH = 44; }
+    else lineH = 44;
+    if (!txt) { y += 20; continue; }
+    x.font = (bold ? '700 ' : '400 ') + size + 'px Arial, sans-serif';
+    const wrapped = wrapLines(x, prefix + txt, W - 2 * M);
+    for (const ln of wrapped) {
+      if (y + lineH > H - 100) newPage();
+      x.font = (bold ? '700 ' : '400 ') + size + 'px Arial, sans-serif';
+      x.fillStyle = color; x.textAlign = 'left';
+      x.fillText(ln, M, y + size);
+      y += lineH;
+    }
+    y += 6;
+  }
+  newPage();
+  return pages;
+}
+document.getElementById('btnResume').onclick = openResume;
+document.getElementById('btnResumeBack').onclick = () => { haptic('soft'); showView('list'); };
+document.getElementById('aiProvider').onchange = updateProviderFields;
+document.getElementById('aiProxyHelpLink').onclick = () => {
+  haptic('soft');
+  const el = document.getElementById('aiProxyHelp');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+};
+document.getElementById('btnAiSave').onclick = async () => {
+  haptic('medium');
+  aiSettings = {
+    provider: document.getElementById('aiProvider').value,
+    key: document.getElementById('aiKey').value.trim(),
+    folder: document.getElementById('aiFolder').value.trim(),
+    proxy: document.getElementById('aiProxy').value.trim().replace(/\/+$/, '')
+  };
+  await saveAiSettings();
+  hapticSuccess();
+  toast('Настройки ИИ сохранены ✓');
+};
+document.getElementById('btnGenerate').onclick = async () => {
+  if (!docs.length) { toast('Сначала добавьте документы в портфолио'); return; }
+  if (!aiConfigured()) {
+    toast('Заполните настройки ИИ: ключ и URL прокси');
+    document.getElementById('aiSettingsBox').scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+  const btn = document.getElementById('btnGenerate');
+  btn.disabled = true;
+  btn.textContent = '⏳ ИИ составляет резюме…';
+  haptic('medium');
+  try {
+    const { system, prompt } = buildResumePrompt();
+    const text = await callAI(system, prompt);
+    lastResumeText = text;
+    document.getElementById('resumeResult').innerHTML = mdToHtml(text);
+    document.getElementById('aiBadge').textContent = 'Составлено ИИ · ' + (aiSettings.provider === 'gigachat' ? 'GigaChat' : 'YandexGPT');
+    document.getElementById('resumeResultBox').style.display = 'block';
+    document.getElementById('resumeResultBox').scrollIntoView({ behavior: 'smooth' });
+    hapticSuccess();
+  } catch (e) {
+    toast('Ошибка: ' + (e.message || 'не удалось получить ответ ИИ'));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✨ Составить резюме';
+  }
+};
+document.getElementById('btnResumePdf').onclick = async () => {
+  if (!lastResumeText) return;
+  haptic('medium');
+  toast('Формируем PDF…');
+  const pages = renderResumePages(lastResumeText);
+  const pdf = buildPdf(pages.map(c => jpegBytesFromCanvas(c, 0.9)));
+  downloadPdf(pdf, 'Resume_' + new Date().toISOString().slice(0, 10) + '.pdf');
+  hapticSuccess();
+};
+document.getElementById('btnResumeCopy').onclick = () => {
+  haptic('light');
+  if (!lastResumeText) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(lastResumeText)
+      .then(() => toast('Резюме скопировано — вставьте куда нужно'))
+      .catch(() => toast('Не удалось скопировать автоматически'));
+  } else toast('Скопируйте текст вручную');
+};
+document.getElementById('btnResumeAgain').onclick = () => {
+  haptic('soft');
+  document.getElementById('resumeResultBox').style.display = 'none';
+  lastResumeText = '';
+  document.querySelector('#view-resume .card-box:nth-of-type(2)').scrollIntoView({ behavior: 'smooth' });
+};
+
 /* ---------- Форма ---------- */
 function openForm(id) {
   editingId = id || null;
@@ -1009,6 +1340,7 @@ document.getElementById('searchInput').addEventListener('input', renderList);
   } catch (e) {}
 
   store.get().then(data => { docs = Array.isArray(data) ? data : []; if (!isShared) renderList(); });
+  loadAiSettings();
   // Контекст запуска (можно адаптировать интерфейс под tabbar)
   try {
     if (WebApp && WebApp.getLaunchContext) {

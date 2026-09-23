@@ -1,0 +1,9 @@
+{
+  "name": "moeportfolio-max",
+  "version": "1.0.0",
+  "private": true,
+  "description": "МоёПортфолио — мини-приложение для MAX: хранение грамот, сертификатов и свидетельств",
+  "scripts": {
+    "dev": "node server.js"
+  }
+}
