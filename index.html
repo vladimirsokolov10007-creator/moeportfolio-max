@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#5a2fd8">
+<title>МоёПортфолио</title>
+<script src="https://st.max.ru/js/max-web-app.js"></script>
+<style>
+  :root{
+    --purple:#7b3ff2; --purple-dark:#5a2fd8; --bg:#f2f1f7; --card:#ffffff;
+    --text:#191426; --text2:#6f6a85; --border:#e8e5f1; --danger:#e5484d;
+    --radius:18px; --shadow:0 1px 6px rgba(25,12,60,.06);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    background:var(--bg); color:var(--text); font-size:15px; line-height:1.45;
+    overscroll-behavior-y:none;
+  }
+  #app{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;}
+
+  /* Header — стилистика Max: насыщенный фиолетовый градиент */
+  .header{
+    background:linear-gradient(135deg,#5a2fd8 0%,#7b3ff2 45%,#a855f7 100%);
+    color:#fff;padding:20px 16px 22px;border-radius:0 0 26px 26px;
+    position:sticky;top:0;z-index:20;
+    box-shadow:0 3px 12px rgba(90,47,216,.22);
+  }
+  .header-row{display:flex;align-items:center;gap:12px;}
+  .avatar{
+    width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.22);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;
+    overflow:hidden;flex-shrink:0;border:2px solid rgba(255,255,255,.55);
+  }
+  .avatar img{width:100%;height:100%;object-fit:cover;}
+  .header h1{margin:0;font-size:20px;font-weight:800;letter-spacing:.2px;}
+  .header .sub{font-size:13px;opacity:.85;margin-top:2px;}
+  .stats{display:flex;gap:8px;margin-top:14px;}
+  .stat{
+    background:rgba(255,255,255,.16);border-radius:14px;padding:9px 14px;flex:1;
+    border:1px solid rgba(255,255,255,.18);
+  }
+  .stat b{display:block;font-size:18px;font-weight:800;}
+  .stat span{font-size:12px;opacity:.85;}
+
+  /* Search */
+  .toolbar{padding:14px 14px 4px;}
+  .search{
+    display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);
+    border-radius:14px;padding:11px 14px;box-shadow:var(--shadow);
+  }
+  .search input{border:none;outline:none;flex:1;font-size:15px;background:transparent;color:var(--text);}
+  .search span{opacity:.55;}
+
+  /* List */
+  .list{padding:10px 14px 110px;display:flex;flex-direction:column;gap:12px;}
+  .card{
+    background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+    display:flex;gap:12px;padding:12px;cursor:pointer;transition:transform .12s;
+    border:1px solid var(--border);content-visibility:auto;contain-intrinsic-size:100px;
+  }
+  .card:active{transform:scale(.98);}
+  .card .thumb{
+    width:74px;height:74px;border-radius:12px;flex-shrink:0;overflow:hidden;
+    background:linear-gradient(135deg,#efe9ff,#e0d4ff);display:flex;align-items:center;justify-content:center;
+  }
+  .card .thumb img{width:100%;height:100%;object-fit:cover;}
+  .card .thumb .emoji{font-size:30px;}
+  .card .info{flex:1;min-width:0;}
+  .card .cat{
+    display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;margin-bottom:5px;
+  }
+  .cat-Грамота{background:#e3f2fd;color:#1565c0;} .cat-Сертификат{background:#f3e8ff;color:#7b3ff2;}
+  .cat-Диплом{background:#e8f5e9;color:#2e7d32;} .cat-Свидетельство{background:#fff3e0;color:#ef6c00;}
+  .cat-Другое{background:#eceff1;color:#546e7a;}
+  .card h3{margin:0;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card p{margin:3px 0 0;font-size:12.5px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card .date{font-size:11.5px;color:var(--text2);margin-top:5px;display:block;}
+
+  .empty{text-align:center;padding:60px 20px;color:var(--text2);}
+  .empty .big{font-size:52px;margin-bottom:10px;}
+  .empty b{display:block;color:var(--text);font-size:17px;margin-bottom:6px;}
+
+  /* FAB */
+  .fab{
+    position:fixed;bottom:24px;right:calc(50% - 260px + 16px);left:auto;width:60px;height:60px;
+    border-radius:50%;background:linear-gradient(135deg,#7b3ff2,#a855f7);color:#fff;border:none;font-size:30px;line-height:1;
+    box-shadow:0 8px 22px rgba(123,63,242,.45);cursor:pointer;z-index:30;transition:transform .12s;
+  }
+  .fab:active{transform:scale(.92);}
+  @media(max-width:520px){.fab{right:18px;}}
+
+  /* Views */
+  .view{display:none;flex-direction:column;flex:1;animation:fadeIn .18s ease;}
+  .view.active{display:flex;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+  /* Detail */
+  .detail-hero{
+    background:#fff;margin:14px;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);
+    border:1px solid var(--border);
+  }
+  .detail-hero .img-wrap{max-height:340px;overflow:hidden;background:#efe9ff;}
+  .detail-hero img{width:100%;height:100%;object-fit:cover;display:block;}
+  .detail-body{padding:16px;}
+  .detail-body h2{margin:6px 0 4px;font-size:19px;}
+  .detail-body .org{color:var(--text2);font-size:14px;margin:0 0 12px;}
+  .detail-body .desc{font-size:14px;color:var(--text);white-space:pre-wrap;margin:0 0 12px;}
+  .kv{display:flex;justify-content:space-between;font-size:13.5px;padding:9px 0;border-top:1px solid var(--border);color:var(--text2);}
+  .kv b{color:var(--text);font-weight:600;}
+  .actions{display:flex;gap:10px;padding:0 14px 30px;}
+  .btn{
+    flex:1;padding:13px;border-radius:13px;border:none;font-size:14.5px;font-weight:600;cursor:pointer;
+    transition:transform .12s;font-family:inherit;
+  }
+  .btn:active{transform:scale(.96);}
+  .btn-primary{background:linear-gradient(135deg,#7b3ff2,#a855f7);color:#fff;box-shadow:0 4px 14px rgba(123,63,242,.3);}
+  .btn-secondary{background:#fff;color:var(--purple);border:1.5px solid var(--purple);}
+  .btn-danger{background:#fff;color:var(--danger);border:1.5px solid var(--danger);}
+
+  /* Form */
+  .form{padding:14px;display:flex;flex-direction:column;gap:14px;flex:1;}
+  .btn-back{
+    align-self:flex-start;display:inline-flex;align-items:center;gap:6px;
+    padding:9px 16px;border-radius:14px;border:none;cursor:pointer;
+    background:linear-gradient(135deg,#7b3ff2,#a855f7);color:#fff;
+    font-size:14.5px;font-weight:700;font-family:inherit;
+    box-shadow:0 4px 14px rgba(123,63,242,.3);transition:transform .12s;
+  }
+  .btn-back:active{transform:scale(.95);}
+  .field label{display:block;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;}
+  .field input,.field select,.field textarea{
+    width:100%;padding:12px;border-radius:12px;border:1px solid var(--border);font-size:15px;
+    background:#fff;outline:none;font-family:inherit;color:var(--text);
+  }
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--purple);}
+  .field textarea{resize:vertical;min-height:84px;}
+  .img-pick{
+    border:2px dashed var(--border);border-radius:14px;background:#fff;padding:18px;text-align:center;
+    cursor:pointer;color:var(--text2);font-size:14px;
+  }
+  .img-pick img{max-width:100%;max-height:180px;border-radius:10px;margin-top:10px;}
+  .form .btn-primary{padding:15px;font-size:16px;}
+
+  /* Modal */
+  .modal-back{
+    position:fixed;inset:0;background:rgba(20,10,40,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:24px;
+  }
+  .modal-back.open{display:flex;}
+  .modal{background:#fff;border-radius:18px;padding:22px;max-width:340px;width:100%;text-align:center;}
+  .modal h3{margin:0 0 8px;font-size:17px;}
+  .modal p{margin:0 0 18px;color:var(--text2);font-size:14px;}
+  .modal .row{display:flex;gap:10px;}
+  .toast{
+    position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;
+    background:#1c1630;color:#fff;padding:11px 20px;border-radius:24px;font-size:14px;z-index:60;
+    transition:.25s;pointer-events:none;max-width:86%;text-align:center;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ ГЛАВНЫЙ ЭКРАН ============ -->
+  <section class="view active" id="view-list">
+    <div class="header">
+      <div class="header-row">
+        <div class="avatar" id="avatar">👤</div>
+        <div>
+          <h1>МоёПортфолио</h1>
+          <div class="sub" id="userGreeting">Ваши достижения под рукой</div>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><b id="statCount">0</b><span>документов</span></div>
+      </div>
+    </div>
+    <div class="toolbar">
+      <div class="search">
+        <span>🔍</span>
+        <input type="text" id="searchInput" placeholder="Поиск по названию или событию…">
+      </div>
+    </div>
+    <div class="list" id="list"></div>
+    <button class="fab" id="fabAdd" aria-label="Добавить">+</button>
+  </section>
+
+  <!-- ============ ДЕТАЛИ ============ -->
+  <section class="view" id="view-detail">
+    <div style="padding:14px 14px 0">
+      <button class="btn-back" id="btnDetailBack">← Назад</button>
+    </div>
+    <div class="detail-hero">
+      <div class="img-wrap" id="detailImgWrap"></div>
+      <div class="detail-body">
+        <span class="cat" id="detailCat"></span>
+        <h2 id="detailTitle"></h2>
+        <p class="org" id="detailOrg"></p>
+        <p class="desc" id="detailDesc"></p>
+        <div class="kv"><span>Дата получения</span><b id="detailDate"></b></div>
+        <div class="kv"><span>Добавлено</span><b id="detailAdded"></b></div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-secondary" id="btnShare">📤 Поделиться</button>
+      <button class="btn btn-secondary" id="btnEdit">✏️ Изменить</button>
+      <button class="btn btn-danger" id="btnDelete">🗑 Удалить</button>
+    </div>
+  </section>
+
+  <!-- ============ ФОРМА ============ -->
+  <section class="view" id="view-form">
+    <div class="form">
+      <button class="btn-back" id="btnFormBack">← Назад</button>
+      <div class="field">
+        <label>Фото документа (необязательно)</label>
+        <div class="img-pick" id="imgPick">
+          <div id="imgPickLabel">📷 Нажмите, чтобы выбрать фото</div>
+          <img id="imgPreview" style="display:none" alt="">
+          <input type="file" id="imgInput" accept="image/*" hidden>
+        </div>
+      </div>
+      <div class="field">
+        <label>Название *</label>
+        <input type="text" id="fTitle" placeholder="Например: Диплом победителя" maxlength="120">
+      </div>
+      <div class="field">
+        <label>Категория *</label>
+        <select id="fCategory">
+          <option>Грамота</option>
+          <option>Сертификат</option>
+          <option>Диплом</option>
+          <option>Свидетельство</option>
+          <option>Другое</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Конкурс / мероприятие / организация</label>
+        <input type="text" id="fOrg" placeholder="Кто выдал документ" maxlength="160">
+      </div>
+      <div class="field">
+        <label>Дата получения</label>
+        <input type="date" id="fDate">
+      </div>
+      <div class="field">
+        <label>Описание</label>
+        <textarea id="fDesc" placeholder="Дополнительные детали: место, степень, результат…" maxlength="1000"></textarea>
+      </div>
+      <button class="btn btn-primary" id="btnSave">💾 Сохранить</button>
+    </div>
+  </section>
+</div>
+
+<!-- Модальное окно подтверждения -->
+<div class="modal-back" id="modalBack">
+  <div class="modal">
+    <h3 id="modalTitle">Удалить документ?</h3>
+    <p id="modalText">Это действие нельзя отменить.</p>
+    <div class="row">
+      <button class="btn btn-secondary" id="modalCancel">Отмена</button>
+      <button class="btn btn-danger" id="modalOk">Удалить</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   МоёПортфолио — мини-приложение для MAX
+   Хранение грамот, сертификатов и свидетельств
+   ========================================================= */
+
+const WebApp = window.WebApp || null;
+const inMax = !!WebApp && (WebApp.platform === 'ios' || WebApp.platform === 'android' || WebApp.platform === 'desktop' || !!WebApp.initData);
+
+const STORAGE_KEY = 'moeportfolio_docs_v1';
+
+let docs = [];
+let currentView = 'list';
+let editingId = null;
+let detailId = null;
+let pendingImage = null;
+let formDirty = false;
+let modalResolve = null;
+
+/* ---------- Хранилище: DeviceStorage (MAX) с fallback на localStorage ---------- */
+const store = {
+  async get() {
+    if (WebApp && WebApp.DeviceStorage) {
+      try {
+        const res = await WebApp.DeviceStorage.getItem(STORAGE_KEY);
+        if (res && res.value) return JSON.parse(res.value);
+      } catch (e) { /* не поддерживается — падаем в localStorage */ }
+    }
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch (e) { return []; }
+  },
+  async set(value) {
+    const str = JSON.stringify(value);
+    if (WebApp && WebApp.DeviceStorage) {
+      try { await WebApp.DeviceStorage.setItem(STORAGE_KEY, str); } catch (e) {}
+    }
+    try { localStorage.setItem(STORAGE_KEY, str); } catch (e) {}
+  }
+};
+
+/* ---------- Утилиты MAX Bridge ---------- */
+/* Haptic вызываем асинхронно, чтобы нативный bridge не блокировал отрисовку UI */
+function haptic(style) {
+  setTimeout(() => {
+    try { WebApp && WebApp.HapticFeedback && WebApp.HapticFeedback.impactOccurred(style || 'light'); } catch (e) {}
+  }, 0);
+}
+function hapticSuccess() {
+  setTimeout(() => {
+    try { WebApp && WebApp.HapticFeedback && WebApp.HapticFeedback.notificationOccurred('success'); } catch (e) {}
+  }, 0);
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._tm);
+  t._tm = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---------- Навигация + BackButton ---------- */
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  currentView = name;
+  if (name !== 'form') { formDirty = false; try { WebApp && WebApp.disableClosingConfirmation(); } catch (e) {} }
+  updateBackButton();
+  window.scrollTo(0, 0);
+}
+function updateBackButton() {
+  if (!WebApp || !WebApp.BackButton) return;
+  if (currentView === 'list') {
+    WebApp.BackButton.hide();
+    WebApp.BackButton.offClick(onBack);
+  } else {
+    WebApp.BackButton.show();
+    WebApp.BackButton.offClick(onBack);
+    WebApp.BackButton.onClick(onBack);
+  }
+}
+function onBack() {
+  haptic('soft');
+  if (currentView === 'form' && formDirty) {
+    confirmDialog('Покинуть без сохранения?', 'Внесённые изменения будут потеряны.', 'Покинуть')
+      .then(ok => { if (ok) showView(detailId && editingId ? 'detail' : 'list'); });
+  } else if (currentView === 'form') {
+    showView(editingId ? 'detail' : 'list');
+  } else if (currentView === 'detail') {
+    showView('list');
+  }
+}
+
+/* ---------- Модальное окно ---------- */
+function confirmDialog(title, text, okLabel) {
+  return new Promise(resolve => {
+    modalResolve = resolve;
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalText').textContent = text;
+    document.getElementById('modalOk').textContent = okLabel || 'Удалить';
+    document.getElementById('modalBack').classList.add('open');
+  });
+}
+document.getElementById('modalCancel').onclick = () => {
+  document.getElementById('modalBack').classList.remove('open');
+  modalResolve && modalResolve(false);
+};
+document.getElementById('modalOk').onclick = () => {
+  document.getElementById('modalBack').classList.remove('open');
+  modalResolve && modalResolve(true);
+};
+
+/* ---------- Рендер списка ---------- */
+function renderList() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const listEl = document.getElementById('list');
+  const filtered = docs
+    .filter(d => !q || (d.title + ' ' + (d.org || '') + ' ' + (d.desc || '')).toLowerCase().includes(q))
+    .sort((a, b) => (b.date || b.createdAt || '').localeCompare(a.date || a.createdAt || ''));
+
+  if (!filtered.length) {
+    listEl.innerHTML = `<div class="empty">
+      <div class="big">${docs.length ? '🔍' : '🏆'}</div>
+      <b>${docs.length ? 'Ничего не найдено' : 'Портфолио пустое'}</b>
+      ${docs.length ? 'Попробуйте изменить запрос' : 'Добавьте первую грамоту или сертификат — нажмите «+»'}</div>`;
+  } else {
+    listEl.innerHTML = filtered.map(d => `
+      <div class="card" data-id="${d.id}">
+        <div class="thumb">${d.image
+          ? `<img src="${d.image}" alt="">`
+          : `<span class="emoji">${({ 'Грамота':'📜','Сертификат':'🎓','Диплом':'🏆','Свидетельство':'📃','Другое':'📄' })[d.category] || '📄'}</span>`}</div>
+        <div class="info">
+          <span class="cat cat-${d.category}">${escapeHtml(d.category)}</span>
+          <h3>${escapeHtml(d.title)}</h3>
+          ${d.org ? `<p>${escapeHtml(d.org)}</p>` : ''}
+          <span class="date">📅 ${fmtDate(d.date)}</span>
+        </div>
+      </div>`).join('');
+    listEl.querySelectorAll('.card').forEach(c => c.onclick = () => openDetail(c.dataset.id));
+  }
+
+  document.getElementById('statCount').textContent = docs.length;
+}
+
+/* ---------- Детали ---------- */
+function openDetail(id) {
+  const d = docs.find(x => x.id === id);
+  if (!d) return;
+  haptic('light');
+  detailId = id;
+  document.getElementById('detailCat').textContent = d.category;
+  document.getElementById('detailCat').className = 'cat cat-' + d.category;
+  document.getElementById('detailTitle').textContent = d.title;
+  document.getElementById('detailOrg').textContent = d.org || '';
+  document.getElementById('detailDesc').textContent = d.desc || '';
+  document.getElementById('detailDate').textContent = fmtDate(d.date);
+  document.getElementById('detailAdded').textContent = fmtDate((d.createdAt || '').slice(0, 10));
+  const wrap = document.getElementById('detailImgWrap');
+  wrap.innerHTML = d.image ? `<img src="${d.image}" alt="">` : '';
+  showView('detail');
+}
+
+document.getElementById('btnEdit').onclick = () => { haptic('light'); openForm(detailId); };
+document.getElementById('btnDetailBack').onclick = () => { haptic('soft'); detailId = null; showView('list'); };
+document.getElementById('btnDelete').onclick = async () => {
+  haptic('light');
+  const d = docs.find(x => x.id === detailId);
+  const ok = await confirmDialog('Удалить документ?', `«${d ? d.title : ''}» будет удалено безвозвратно.`, 'Удалить');
+  if (!ok) return;
+  docs = docs.filter(x => x.id !== detailId);
+  await store.set(docs);
+  hapticSuccess();
+  toast('Документ удалён');
+  detailId = null;
+  renderList();
+  showView('list');
+};
+document.getElementById('btnShare').onclick = () => {
+  haptic('light');
+  const d = docs.find(x => x.id === detailId);
+  if (!d) return;
+  const text = `🏆 ${d.title}\n${d.org ? 'Мероприятие: ' + d.org + '\n' : ''}${d.date ? 'Дата: ' + fmtDate(d.date) : ''}\n\nХраню достижения в мини-приложении «МоёПортфолио» для MAX`;
+  try {
+    if (WebApp && WebApp.shareMaxContent) {
+      WebApp.shareMaxContent({ text }).then(({status}) => {
+        if (status === 'shared') { hapticSuccess(); toast('Отправлено'); }
+      }).catch(() => fallbackShare(text));
+    } else fallbackShare(text);
+  } catch (e) { fallbackShare(text); }
+};
+function fallbackShare(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => toast('Текст скопирован — вставьте в чат'));
+  } else toast('Скопируйте текст вручную');
+}
+
+/* ---------- Форма ---------- */
+function openForm(id) {
+  editingId = id || null;
+  pendingImage = null;
+  formDirty = false;
+  const d = id ? docs.find(x => x.id === id) : null;
+  document.getElementById('fTitle').value = d ? d.title : '';
+  document.getElementById('fCategory').value = d ? d.category : 'Грамота';
+  document.getElementById('fOrg').value = d && d.org ? d.org : '';
+  document.getElementById('fDate').value = d && d.date ? d.date : '';
+  document.getElementById('fDesc').value = d && d.desc ? d.desc : '';
+  const prev = document.getElementById('imgPreview');
+  if (d && d.image) { prev.src = d.image; prev.style.display = 'block'; pendingImage = d.image; }
+  else { prev.style.display = 'none'; prev.src = ''; }
+  document.getElementById('imgPickLabel').textContent = d && d.image ? 'Нажмите, чтобы заменить фото' : '📷 Нажмите, чтобы выбрать фото';
+  showView('form');
+}
+document.getElementById('fabAdd').onclick = () => { haptic('medium'); openForm(null); };
+document.getElementById('btnFormBack').onclick = () => {
+  haptic('soft');
+  if (formDirty) {
+    confirmDialog('Покинуть без сохранения?', 'Внесённые изменения будут потеряны.', 'Покинуть')
+      .then(ok => { if (ok) { editingId = null; showView('list'); } });
+  } else {
+    editingId = null;
+    showView('list');
+  }
+};
+document.getElementById('view-form').addEventListener('input', () => {
+  formDirty = true;
+  try { WebApp && WebApp.enableClosingConfirmation(); } catch (e) {}
+});
+document.getElementById('imgPick').onclick = () => document.getElementById('imgInput').click();
+document.getElementById('imgInput').onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  compressImage(file, dataUrl => {
+    pendingImage = dataUrl;
+    const prev = document.getElementById('imgPreview');
+    prev.src = dataUrl; prev.style.display = 'block';
+    document.getElementById('imgPickLabel').textContent = 'Нажмите, чтобы заменить фото';
+    formDirty = true;
+  });
+};
+function compressImage(file, cb) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 1024;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) { const k = MAX / Math.max(w, h); w = Math.round(w * k); h = Math.round(h * k); }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      cb(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('btnSave').onclick = async () => {
+  haptic('medium');
+  const title = document.getElementById('fTitle').value.trim();
+  if (!title) { toast('Введите название документа'); return; }
+  const data = {
+    title,
+    category: document.getElementById('fCategory').value,
+    org: document.getElementById('fOrg').value.trim(),
+    date: document.getElementById('fDate').value,
+    desc: document.getElementById('fDesc').value.trim(),
+    image: pendingImage || null
+  };
+  if (editingId) {
+    const i = docs.findIndex(x => x.id === editingId);
+    if (i > -1) docs[i] = { ...docs[i], ...data };
+  } else {
+    docs.push({ id: 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), createdAt: new Date().toISOString(), ...data });
+  }
+  await store.set(docs);
+  hapticSuccess();
+  toast('Сохранено ✓');
+  renderList();
+  const savedId = editingId || docs[docs.length - 1].id;
+  editingId = null;
+  openDetail(savedId);
+};
+document.getElementById('searchInput').addEventListener('input', renderList);
+
+/* ---------- Инициализация ---------- */
+(function init() {
+  // Профиль пользователя MAX
+  try {
+    const u = WebApp && WebApp.initDataUnsafe && WebApp.initDataUnsafe.user;
+    if (u) {
+      const name = [u.first_name, u.last_name].filter(Boolean).join(' ');
+      document.getElementById('userGreeting').textContent = name ? name + ', ваши достижения под рукой' : 'Ваши достижения под рукой';
+      const av = document.getElementById('avatar');
+      if (u.photo_url) av.innerHTML = `<img src="${escapeHtml(u.photo_url)}" alt="">`;
+      else av.textContent = (u.first_name || '👤').charAt(0).toUpperCase();
+    }
+  } catch (e) {}
+
+  store.get().then(data => { docs = Array.isArray(data) ? data : []; renderList(); });
+  // Контекст запуска (можно адаптировать интерфейс под tabbar)
+  try {
+    if (WebApp && WebApp.getLaunchContext) {
+      WebApp.getLaunchContext().then(ctx => { console.log('Launch context:', ctx); }).catch(() => {});
+    }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
