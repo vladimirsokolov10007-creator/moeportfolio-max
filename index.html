@@ -172,7 +172,7 @@
   .resume-actions{display:flex;gap:10px;flex-wrap:wrap;}
   .resume-actions .btn{flex:1;min-width:130px;}
   .link-btn{background:none;border:none;color:var(--purple);font-size:13px;font-weight:600;cursor:pointer;padding:0;font-family:inherit;}
-  .ai-note{font-size:12px;color:var(--text2);background:#f4f2fa;border-radius:10px;padding:10px 12px;line-height:1.5;}
+
   /* Шторка «Поделиться» */
   .sheet-back{position:fixed;inset:0;background:rgba(20,10,40,.5);display:none;align-items:flex-end;justify-content:center;z-index:50;}
   .sheet-back.open{display:flex;}
@@ -214,7 +214,7 @@
           <h1>МоёПортфолио</h1>
           <div class="sub" id="userGreeting">Ваши достижения под рукой</div>
         </div>
-        <button class="share-btn-mini" id="btnResume" title="Резюме с помощью ИИ">🤖 Резюме</button>
+        <button class="share-btn-mini" id="btnResume" title="Резюме из достижений">📝 Резюме</button>
         <button class="share-btn-mini" id="btnShareAll" title="Поделиться портфолио">📤 Поделиться</button>
       </div>
       <div class="stats">
@@ -315,50 +315,15 @@
     </div>
   </section>
 
-  <!-- ============ РЕЗЮМЕ (ИИ) ============ -->
+  <!-- ============ РЕЗЮМЕ ============ -->
   <section class="view" id="view-resume">
     <div class="resume-wrap">
       <button class="btn-back" id="btnResumeBack">← Назад</button>
 
-      <!-- Настройки ИИ -->
-      <div class="card-box" id="aiSettingsBox">
-        <h3>⚙️ Подключение ИИ</h3>
-        <p class="hint">Выберите агента — ключи настраиваются один раз в прокси (<span id="aiProxyHelpLink" class="link-btn">как подключить</span>), в приложение они не вводятся</p>
-        <div class="field">
-          <label>ИИ-агент</label>
-          <select id="aiProvider">
-            <option value="gigachat">GigaChat (Сбер)</option>
-            <option value="yandexgpt">YandexGPT (Яндекс)</option>
-          </select>
-          <div id="aiStatus" style="font-size:12.5px;margin-top:6px;color:var(--text2)"></div>
-        </div>
-        <div class="field">
-          <label>URL прокси</label>
-          <input type="text" id="aiProxy" placeholder="https://ваш-worker.workers.dev" autocomplete="off">
-        </div>
-        <button class="btn btn-secondary" id="btnAiSave" style="width:100%">💾 Сохранить</button>
-      </div>
-      <div class="ai-note" id="aiProxyHelp" style="display:none">
-        Прямой вызов GigaChat/YandexGPT из браузера блокируется CORS, поэтому нужен единоразовая настройка прокси (~5 минут).<br><br>
-        <b>1.</b> Откройте <b>dash.cloudflare.com</b> → зарегистрируйтесь (бесплатно, без карты)<br>
-        <b>2.</b> Workers &amp; Pages → Create Worker → Deploy<br>
-        <b>3.</b> «Edit code» → удалите весь код → вставьте код из файла <b>worker.js</b> (в репозитории приложения) → Deploy<br>
-        <b>4.</b> Settings → Variables and Secrets → добавьте секрет <b>GIGACHAT_KEY</b> — Authorization Key с developers.sber.ru (или <b>YANDEX_API_KEY</b> + <b>YANDEX_FOLDER_ID</b> с cloud.yandex.ru)<br>
-        <b>5.</b> Скопируйте URL вида <b>https://имя.workers.dev</b> в поле «URL прокси» выше<br><br>
-        Всё: в приложении остаётся только выбрать агента. Проверить настройку можно, открыв URL прокси в браузере.
-      </div>
-
       <!-- Форма резюме -->
       <div class="card-box">
-        <h3>📄 Резюме на основе достижений</h3>
-        <p class="hint" id="resumeFormHint">Офлайн-режим работает без настройки; ИИ-режим требует прокси</p>
-        <div class="field">
-          <label>Режим составления</label>
-          <select id="rMode">
-            <option value="offline">📄 Офлайн — шаблоны (без настройки)</option>
-            <option value="ai">🤖 ИИ — GigaChat / YandexGPT (нужен прокси)</option>
-          </select>
-        </div>
+        <h3>📝 Резюме из ваших достижений</h3>
+        <p class="hint" id="resumeFormHint">Соберётся из документов портфолио — без интернета и настроек</p>
         <div class="field">
           <label>ФИО</label>
           <input type="text" id="rName" placeholder="Иванова Анна Сергеевна" maxlength="80">
@@ -393,7 +358,7 @@
 
       <!-- Результат -->
       <div id="resumeResultBox" style="display:none">
-        <div style="margin-bottom:8px"><span class="ai-badge" id="aiBadge">Составлено ИИ</span></div>
+        <div style="margin-bottom:8px"><span class="ai-badge" id="aiBadge">Составлено автоматически</span></div>
         <div class="resume-result" id="resumeResult"></div>
         <div class="resume-actions" style="margin-top:12px">
           <button class="btn btn-secondary" id="btnResumePdf">📄 Скачать PDF</button>
@@ -1007,89 +972,19 @@ function closeApp() {
   try { window.history.back(); } catch (e) {}
 }
 
-/* ---------- Резюме с помощью ИИ (GigaChat / YandexGPT через прокси) ---------- */
-let aiSettings = { provider: 'gigachat', proxy: '' };
+/* ---------- Резюме (офлайн-генератор по шаблонам) ---------- */
 let lastResumeText = '';
-const AI_KEY = 'moeportfolio_ai_v1';
 
-async function loadAiSettings() {
-  try {
-    let raw = null;
-    try {
-      if (WebApp && WebApp.SecureStorage) {
-        const r = await Promise.race([
-          WebApp.SecureStorage.getItem(AI_KEY),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('t')), 2000))
-        ]);
-        if (r && r.value) raw = r.value;
-      }
-    } catch (e) {}
-    if (!raw) raw = localStorage.getItem(AI_KEY);
-    if (raw) aiSettings = { ...aiSettings, ...JSON.parse(raw) };
-  } catch (e) {}
-}
-async function saveAiSettings() {
-  const str = JSON.stringify(aiSettings);
-  try {
-    if (WebApp && WebApp.SecureStorage) {
-      await Promise.race([
-        WebApp.SecureStorage.setItem(AI_KEY, str),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('t')), 2000))
-      ]);
-    }
-  } catch (e) {}
-  try { localStorage.setItem(AI_KEY, str); } catch (e) {}
-}
-function aiConfigured() {
-  return !!aiSettings.proxy;
-}
-function fillAiForm() {
-  document.getElementById('aiProvider').value = aiSettings.provider || 'gigachat';
-  document.getElementById('aiProxy').value = aiSettings.proxy || '';
-  checkAgents();
-}
-// Спрашиваем у прокси, какие агенты настроены (секреты воркера)
-async function checkAgents() {
-  const el = document.getElementById('aiStatus');
-  if (!aiSettings.proxy) { el.textContent = '⚠️ Укажите URL прокси'; return; }
-  el.textContent = '⏳ Проверяем подключение…';
-  try {
-    const res = await fetch(aiSettings.proxy, {
-      method: 'GET',
-      signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined
-    });
-    const data = await res.json();
-    if (!data.ok || !data.agents) throw new Error('bad');
-    const a = data.agents;
-    el.innerHTML =
-      (a.gigachat ? '✅' : '⛔') + ' GigaChat (Сбер) &nbsp;·&nbsp; ' + (a.yandexgpt ? '✅' : '⛔') + ' YandexGPT (Яндекс)';
-    const sel = document.getElementById('aiProvider');
-    if (!a[sel.value]) {
-      if (sel.value === 'gigachat' && a.yandexgpt) sel.value = 'yandexgpt';
-      else if (sel.value === 'yandexgpt' && a.gigachat) sel.value = 'gigachat';
-    }
-    if (!a.gigachat && !a.yandexgpt) {
-      el.innerHTML += '<br>Агенты не настроены — добавьте секреты в настройках воркера';
-    }
-  } catch (e) {
-    el.textContent = '⚠️ Прокси не отвечает — проверьте URL (откройте его в браузере)';
-  }
-}
 function openResume() {
   haptic('light');
-  fillAiForm();
-  try {
-    const savedMode = localStorage.getItem(RMODE_KEY);
-    if (savedMode === 'offline' || savedMode === 'ai') document.getElementById('rMode').value = savedMode;
-  } catch (e) {}
   const u = WebApp && WebApp.initDataUnsafe && WebApp.initDataUnsafe.user;
   if (u && !document.getElementById('rName').value) {
     document.getElementById('rName').value = [u.first_name, u.last_name].filter(Boolean).join(' ');
   }
   document.getElementById('resumeFormHint').textContent =
     docs.length
-      ? `Офлайн работает без настройки · ИИ-режим составит резюме из ${docs.length} ${plural(docs.length, 'документа', 'документов', 'документов')}`
-      : 'Документов нет — офлайн-режим составит резюме из сведений о себе, либо добавьте документы';
+      ? `Резюме соберётся из ${docs.length} ${plural(docs.length, 'документа', 'документов', 'документов')} вашего портфолио — всё уже на устройстве`
+      : 'Документов пока нет — резюме составится из сведений о себе, либо добавьте документы в портфолио';
   showView('resume');
 }
 function plural(n, one, few, many) {
@@ -1099,21 +994,28 @@ function plural(n, one, few, many) {
   return many;
 }
 /* ---------- Офлайн-генератор резюме (шаблоны, без ИИ и сети) ---------- */
-const RMODE_KEY = 'moeportfolio_rmode_v1';
 const GOAL_TEXT = {
-  'работа': t => 'Трудоустройство / стажировка' + (t ? ': ' + t : ''),
-  'конкурс': t => 'Участие в конкурсе или грантовой программе' + (t ? ' — ' + t : ''),
-  'учеба': t => 'Поступление в учебное заведение' + (t ? ' — ' + t : ''),
-  'иное': t => t || 'Представление достижений и профессиональный рост'
+  'работа': t => 'Работа / стажировка' + (t ? ' — ' + t : '') + '. За каждым документом портфолио стоит реальный результат, выдержанный в режиме требований и дедлайнов',
+  'конкурс': t => 'Участие в конкурсе или грантовой программе' + (t ? ' («' + t + '»)' : '') + '. Портфолио собрано так, что каждое достижение легко проверить: документ, организация, год — всё зафиксировано',
+  'учеба': t => 'Поступление в учебное заведение' + (t ? ' — ' + t : '') + '. Мотивация подтверждена не словами, а документально зафиксированными достижениями и системной работой над собой',
+  'иное': t => t ? t + '. Ниже — только то, что подтверждено документами личного портфолио' : 'Представление достижений. Портфолио говорит лучше любых слов: ниже — только документально подтверждённые факты'
 };
 const CAT_ORDER = ['Диплом', 'Сертификат', 'Свидетельство', 'Грамота'];
-const CAT_SKILLS = {
-  'Диплом': 'результаты в конкурсах, отмеченные дипломами',
-  'Сертификат': 'подтверждённые знания и пройденное обучение',
-  'Свидетельство': 'подтверждённое участие в программах и мероприятиях',
-  'Грамота': 'признание со стороны организаций и жюри',
-  'Другое': 'разнообразный опыт участия в мероприятиях'
+const CAT_INTRO = {
+  'Диплом': 'Дипломы — самая сильная часть портфолио: они фиксируют результаты в честной конкурентной борьбе.',
+  'Сертификат': 'Сертификаты показывают, что знания не просто заявлены, а пройдены, сданы и подтверждены.',
+  'Свидетельство': 'Свидетельства отмечают участие в программах, проектах и мероприятиях — опыт реальной включённости.',
+  'Грамота': 'Грамоты — признание со стороны организаций, жюри и сообществ, отметивших вклад и результаты.',
+  'Другое': 'Дополнительные документы расширяют картину и показывают широту интересов.'
 };
+const CAT_SKILLS = {
+  'Диплом': ['умение добиваться измеримого результата в конкурентной среде', 'опыт подготовки и выступлений в условиях ограниченного времени'],
+  'Сертификат': ['подтверждённые знания и пройденное обучение', 'привычка доводить начатое обучение до сертификата'],
+  'Свидетельство': ['опыт участия в целевых программах и проектах', 'умение работать по правилам и требованиям организаторов'],
+  'Грамота': ['признание результатов со стороны организаций и жюри', 'активная общественная позиция'],
+  'Другое': ['разнообразный опыт участия в мероприятиях и проектах']
+};
+const SOFT_SKILLS = ['целеустремлённость и доведение начатого до результата', 'ответственность: каждое достижение подкреплено документом'];
 function buildOfflineResume() {
   const name = document.getElementById('rName').value.trim();
   const goal = document.getElementById('rGoal').value;
@@ -1138,15 +1040,26 @@ function buildOfflineResume() {
     if (withDesc && d.desc) s += '. ' + d.desc;
     return '- ' + s;
   };
+  const years = sorted.map(d => (d.date || '').slice(0, 4)).filter(Boolean).sort();
   const L = [];
   L.push('# ' + (name || 'Резюме'));
   L.push('');
   L.push('**Цель:** ' + (GOAL_TEXT[goal] ? GOAL_TEXT[goal](target) : target || GOAL_TEXT['иное']('')));
   L.push('');
+  if (sorted.length && size !== 'краткое') {
+    const top = sorted[0];
+    L.push('## Главное достижение');
+    L.push(docLine(top, true));
+    L.push('');
+  }
   if (sorted.length) {
     L.push('## Достижения и награды');
     for (const c of cats) {
       L.push('### ' + c);
+      if (size !== 'краткое') {
+        L.push(CAT_INTRO[c] || CAT_INTRO['Другое']);
+        L.push('');
+      }
       for (const d of groups.get(c)) L.push(docLine(d, size === 'подробное'));
       L.push('');
     }
@@ -1157,7 +1070,8 @@ function buildOfflineResume() {
       extra.split('\n').map(s => s.trim()).filter(Boolean).forEach(s => L.push('- ' + s.replace(/^[•\-–*]\s*/, '')));
       L.push('');
     }
-    const skills = cats.map(c => CAT_SKILLS[c] || CAT_SKILLS['Другое'])
+    const skills = cats.flatMap(c => CAT_SKILLS[c] || CAT_SKILLS['Другое'])
+      .concat(sorted.length ? SOFT_SKILLS : [])
       .filter((v, i, a) => a.indexOf(v) === i);
     if (skills.length) {
       L.push('## Ключевые навыки');
@@ -1166,11 +1080,14 @@ function buildOfflineResume() {
     }
     if (sorted.length) {
       const stats = cats.map(c => c.toLowerCase() + ' — ' + groups.get(c).length).join(', ');
+      const range = years.length > 1 ? 'с ' + years[0] + ' по ' + years[years.length - 1] + ' год' : (years.length ? 'в ' + years[0] + ' году' : '');
       L.push('## О себе');
-      L.push((name || 'Автор портфолио') + ' — участник конкурсов и мероприятий; в портфолио '
-        + sorted.length + ' ' + plural(sorted.length, 'документ', 'документа', 'документов')
-        + ' (' + stats + '). Стремится к профессиональному росту'
-        + (target ? ' в сфере: ' + target : '') + '.');
+      L.push((name || 'Автор портфолио') + ' — участник конкурсов, программ и мероприятий. В портфолио '
+        + sorted.length + ' ' + plural(sorted.length, 'документ', 'документа', 'документов') + ' (' + stats + '), '
+        + (range ? 'достижения фиксируются ' + range : 'достижения продолжают пополняться')
+        + '. Каждая позиция ниже подтверждена документально — оригиналы можно предъявить по запросу. '
+        + 'Стремление развиваться' + (target ? ' в сфере «' + target + '»' : '')
+        + ' подкреплено не обещаниями, а регулярными результатами.');
       L.push('');
     }
   }
@@ -1179,43 +1096,16 @@ function buildOfflineResume() {
     for (const c of cats) L.push('- ' + c + ': ' + groups.get(c).length);
     L.push('');
   }
+  if (sorted.length) {
+    L.push('---');
+    L.push('Все указанные достижения подтверждены документами из портфолио «МоёПортфолио» и соответствуют оригиналам.');
+  }
   return L.join('\n').trim();
-}
-function buildResumePrompt() {
-  const name = document.getElementById('rName').value.trim();
-  const goal = document.getElementById('rGoal').value;
-  const target = document.getElementById('rTarget').value.trim();
-  const extra = document.getElementById('rExtra').value.trim();
-  const size = document.getElementById('rSize').value;
-  const sorted = [...docs].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  const lines = sorted.map((d, i) =>
-    `${i + 1}. [${d.category}] ${d.title}${d.org ? ' — ' + d.org : ''}${d.date ? ' (' + d.date.slice(0, 4) + ' г.)' : ''}${d.desc ? ': ' + d.desc : ''}`);
-  const system = 'Ты — профессиональный карьерный консультант. Составляешь резюме на русском языке. Используй ТОЛЬКО факты из предоставленных данных — ничего не выдумывай и не добавляй несуществующие достижения. Отвечай строго в формате Markdown: заголовки через #, списки через десятичные дефисы.';
-  const prompt =
-    `Составь ${size} резюме на русском языке.\n` +
-    `ФИО: ${name || 'не указано'}\n` +
-    `Цель: ${goal}${target ? '\nДолжность/направление: ' + target : ''}` +
-    (extra ? '\nДополнительные сведения обо мне: ' + extra : '') +
-    `\n\nМои достижения и документы (портфолио):\n${lines.join('\n')}\n\n` +
-    `Структура резюме: ФИО крупно; цель; раздел «Достижения и награды» — сгруппируй по категориям (дипломы, сертификаты, грамоты…), внутри групп от новых к старым, указывай год; раздел «Ключевые навыки» — выведи из сути достижений; короткий блок «О себе».`;
-  return { system, prompt };
-}
-async function callAI(system, prompt) {
-  const res = await fetch(aiSettings.proxy, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      provider: aiSettings.provider,
-      system, prompt
-    })
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.ok) throw new Error(data.error || ('Ошибка прокси: HTTP ' + res.status));
-  return data.text;
 }
 function mdToHtml(md) {
   return escapeHtml(md).split('\n').map(ln => {
     const t = ln.trim();
+    if (t === '---') return '<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">';
     if (t.startsWith('### ')) return '<h3>' + t.slice(4) + '</h3>';
     if (t.startsWith('## ')) return '<h2>' + t.slice(3) + '</h2>';
     if (t.startsWith('# ')) return '<h1>' + t.slice(2) + '</h1>';
@@ -1246,6 +1136,13 @@ function renderResumePages(text) {
   };
   for (const raw of text.split('\n')) {
     const t = raw.trim().replace(/\*\*/g, '');
+    if (t === '---') {
+      if (y + 40 > H - 100) newPage();
+      x.strokeStyle = '#d9d4e8'; x.lineWidth = 2;
+      x.beginPath(); x.moveTo(M, y + 10); x.lineTo(W - M, y + 10); x.stroke();
+      y += 36;
+      continue;
+    }
     let size = 30, bold = false, color = '#3a3450', lineH, txt = t, prefix = '';
     if (t.startsWith('### ')) { size = 36; bold = true; color = '#7b3ff2'; txt = t.slice(4); lineH = 48; }
     else if (t.startsWith('## ')) { size = 42; bold = true; color = '#7b3ff2'; txt = t.slice(3); lineH = 56; }
@@ -1269,63 +1166,15 @@ function renderResumePages(text) {
 }
 document.getElementById('btnResume').onclick = openResume;
 document.getElementById('btnResumeBack').onclick = () => { haptic('soft'); showView('list'); };
-document.getElementById('aiProxyHelpLink').onclick = () => {
-  haptic('soft');
-  const el = document.getElementById('aiProxyHelp');
-  el.style.display = el.style.display === 'none' ? 'block' : 'none';
-};
-document.getElementById('btnAiSave').onclick = async () => {
+document.getElementById('btnGenerate').onclick = () => {
+  // Локальный генератор: никаких сетевых запросов и настроек
   haptic('medium');
-  aiSettings = {
-    provider: document.getElementById('aiProvider').value,
-    proxy: document.getElementById('aiProxy').value.trim().replace(/\/+$/, '')
-  };
-  await saveAiSettings();
+  lastResumeText = buildOfflineResume();
+  document.getElementById('resumeResult').innerHTML = mdToHtml(lastResumeText);
+  document.getElementById('aiBadge').textContent = '📝 Составлено по шаблонам · без ИИ';
+  document.getElementById('resumeResultBox').style.display = 'block';
+  document.getElementById('resumeResultBox').scrollIntoView({ behavior: 'smooth' });
   hapticSuccess();
-  toast('Подключение сохранено ✓');
-  checkAgents();
-};
-document.getElementById('rMode').onchange = () => {
-  try { localStorage.setItem(RMODE_KEY, document.getElementById('rMode').value); } catch (e) {}
-};
-document.getElementById('btnGenerate').onclick = async () => {
-  const mode = document.getElementById('rMode').value;
-  if (mode === 'offline') {
-    // Локальный генератор: никаких сетевых запросов и настроек
-    haptic('medium');
-    lastResumeText = buildOfflineResume();
-    document.getElementById('resumeResult').innerHTML = mdToHtml(lastResumeText);
-    document.getElementById('aiBadge').textContent = '📄 Составлено офлайн · шаблоны';
-    document.getElementById('resumeResultBox').style.display = 'block';
-    document.getElementById('resumeResultBox').scrollIntoView({ behavior: 'smooth' });
-    hapticSuccess();
-    return;
-  }
-  if (!docs.length) { toast('Сначала добавьте документы в портфолио'); return; }
-  if (!aiConfigured()) {
-    toast('Укажите URL прокси в настройках подключения');
-    document.getElementById('aiSettingsBox').scrollIntoView({ behavior: 'smooth' });
-    return;
-  }
-  const btn = document.getElementById('btnGenerate');
-  btn.disabled = true;
-  btn.textContent = '⏳ ИИ составляет резюме…';
-  haptic('medium');
-  try {
-    const { system, prompt } = buildResumePrompt();
-    const text = await callAI(system, prompt);
-    lastResumeText = text;
-    document.getElementById('resumeResult').innerHTML = mdToHtml(text);
-    document.getElementById('aiBadge').textContent = 'Составлено ИИ · ' + (aiSettings.provider === 'gigachat' ? 'GigaChat' : 'YandexGPT');
-    document.getElementById('resumeResultBox').style.display = 'block';
-    document.getElementById('resumeResultBox').scrollIntoView({ behavior: 'smooth' });
-    hapticSuccess();
-  } catch (e) {
-    toast('Ошибка: ' + (e.message || 'не удалось получить ответ ИИ'));
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '✨ Составить резюме';
-  }
 };
 document.getElementById('btnResumePdf').onclick = async () => {
   if (!lastResumeText) return;
@@ -1349,7 +1198,7 @@ document.getElementById('btnResumeAgain').onclick = () => {
   haptic('soft');
   document.getElementById('resumeResultBox').style.display = 'none';
   lastResumeText = '';
-  document.querySelector('#view-resume .card-box:nth-of-type(2)').scrollIntoView({ behavior: 'smooth' });
+  document.querySelector('#view-resume .card-box').scrollIntoView({ behavior: 'smooth' });
 };
 
 /* ---------- Форма ---------- */
@@ -1460,7 +1309,6 @@ document.getElementById('searchInput').addEventListener('input', renderList);
   } catch (e) {}
 
   store.get().then(data => { docs = Array.isArray(data) ? data : []; if (!isShared) renderList(); });
-  loadAiSettings();
   // Контекст запуска (можно адаптировать интерфейс под tabbar)
   try {
     if (WebApp && WebApp.getLaunchContext) {
