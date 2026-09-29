@@ -413,19 +413,48 @@ let pendingImage = null;
 let formDirty = false;
 let modalResolve = null;
 
-/* ---------- Хранилище: DeviceStorage (MAX) с fallback на localStorage ---------- */
+/* ---------- Хранилище: DeviceStorage (MAX) + localStorage, с объединением и ре-синхронизацией ----------
+   Проблема: после закрытия мини-приложения одно из хранилищ может очиститься
+   (DeviceStorage — сессионное на части устройств, localStorage — переполняется
+   квотой при больших фото). Читаем ОБА, объединяем по id и восстанавливаем
+   опустевшее хранилище из сохранившегося. */
 const store = {
   async get() {
+    let cloud = null;
     if (WebApp && WebApp.DeviceStorage) {
       try {
         const res = await Promise.race([
           WebApp.DeviceStorage.getItem(STORAGE_KEY),
           new Promise((_, rej) => setTimeout(() => rej(new Error('ds-timeout')), 3000))
         ]);
-        if (res && res.value) return JSON.parse(res.value);
-      } catch (e) { /* не поддерживается — падаем в localStorage */ }
+        if (res && res.value) cloud = JSON.parse(res.value);
+      } catch (e) { /* не поддерживается — работаем с localStorage */ }
     }
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch (e) { return []; }
+    let local = null;
+    try { local = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch (e) {}
+
+    cloud = Array.isArray(cloud) ? cloud : [];
+    local = Array.isArray(local) ? local : [];
+
+    // Объединяем по id: берём более полную запись (с фото и более новую — приоритетнее)
+    const map = new Map();
+    for (const d of [...local, ...cloud]) {
+      if (!d || !d.id) continue;
+      const prev = map.get(d.id);
+      if (!prev ||
+          (d.image ? 1 : 0) > (prev.image ? 1 : 0) ||
+          String(d.createdAt || '') > String(prev.createdAt || '')) {
+        map.set(d.id, d);
+      }
+    }
+    const merged = [...map.values()];
+
+    // Ре-синхронизация: если хранилища разошлись — восстанавливаем оба
+    if (merged.length && (merged.length !== cloud.length || merged.length !== local.length ||
+        !merged.every(d => cloud.some(c => c.id === d.id) && local.some(l => l.id === d.id)))) {
+      this.set(merged);
+    }
+    return merged;
   },
   async set(value) {
     const str = JSON.stringify(value);
@@ -437,7 +466,12 @@ const store = {
         ]);
       } catch (e) { /* не поддерживается — пишем в localStorage */ }
     }
-    try { localStorage.setItem(STORAGE_KEY, str); } catch (e) {}
+    try {
+      localStorage.setItem(STORAGE_KEY, str);
+    } catch (e) {
+      // Квота localStorage исчерпана — большие фото могут не сохраниться
+      try { toast('⚠️ Хранилище переполнено — фото может не сохраниться'); } catch (_) {}
+    }
   }
 };
 
