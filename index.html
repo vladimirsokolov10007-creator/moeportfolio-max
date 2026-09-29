@@ -831,9 +831,21 @@ async function generatePortfolioPdf() {
   return buildPdf(pages.map(c => jpegBytesFromCanvas(c, 0.88)));
 }
 
-function downloadPdf(pdfBytes, name) {
+async function downloadPdf(pdfBytes, name) {
   name = name || 'Portfolio_' + new Date().toISOString().slice(0, 10) + '.pdf';
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  const file = new File([blob], name, { type: 'application/pdf' });
+  /* В MAX обычное скачивание через href заблокировано (см. документацию MAX Bridge).
+     Предлагаем нативное меню «Поделиться»: файл можно отправить в чат MAX или сохранить. */
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: name });
+      return name;
+    } catch (e) {
+      if (e && e.name === 'AbortError') return name; // пользователь отменил передачу
+      /* иначе падаем в обычное скачивание ниже */
+    }
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = name;
@@ -848,9 +860,9 @@ async function sharePortfolioPdf() {
   toast('Формируем PDF…');
   try {
     const pdf = await generatePortfolioPdf();
-    const name = downloadPdf(pdf);
+    const name = await downloadPdf(pdf);
     hapticSuccess();
-    toast('PDF «' + name + '» сохранён — отправьте его в чат MAX');
+    toast('PDF «' + name + '» готов — отправьте его в чат MAX или сохраните');
   } catch (e) {
     toast('Не удалось сформировать PDF');
   }
@@ -1216,8 +1228,8 @@ document.getElementById('btnResumePdf').onclick = async () => {
   toast('Формируем PDF…');
   const pages = renderResumePages(lastResumeText);
   const pdf = buildPdf(pages.map(c => jpegBytesFromCanvas(c, 0.9)));
-  downloadPdf(pdf, 'Resume_' + new Date().toISOString().slice(0, 10) + '.pdf');
-  hapticSuccess();
+  downloadPdf(pdf, 'Resume_' + new Date().toISOString().slice(0, 10) + '.pdf')
+    .then(() => { hapticSuccess(); toast('PDF готов — отправьте его в чат MAX или сохраните'); });
 };
 document.getElementById('btnResumeCopy').onclick = () => {
   haptic('light');
