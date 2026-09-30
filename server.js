@@ -13,8 +13,8 @@ function argVal(names, dflt) {
   }
   return dflt;
 }
-const host = argVal(['--host', '-h'], 'localhost');
-const port = parseInt(argVal(['--port', '-p'], '7100'), 10);
+const host = argVal(['--host', '-h'], process.env.HOST || 'localhost');
+const port = parseInt(argVal(['--port', '-p'], process.env.PORT || '7100'), 10);
 const root = __dirname;
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml' };

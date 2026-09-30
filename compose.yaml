@@ -1,0 +1,6 @@
+services:
+  moeportfolio:
+    build: .
+    ports:
+      - "7100:7100"
+    restart: unless-stopped
